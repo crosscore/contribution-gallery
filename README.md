@@ -1,10 +1,10 @@
 <div align="center">
 
-# contribution-splatoon
+# contribution-gallery
 
-**Two snakes. One grid. A territory battle on your GitHub contribution graph.**
+**A gallery of animations for your GitHub contribution graph — a Splatoon-style territory battle, plus six ambient scenes.**
 
-<img src="docs/splatoon-dark.svg" alt="contribution-splatoon demo" width="720" />
+<img src="docs/splatoon-dark.svg" alt="contribution-gallery demo" width="720" />
 
 *Inspired by [Splatoon](https://en.wikipedia.org/wiki/Splatoon) — two AI snakes race across your contribution graph, painting territory and stealing each other's ground.*
 
@@ -90,7 +90,7 @@ jobs:
   generate:
     runs-on: ubuntu-latest
     steps:
-      - uses: crosscore/contribution-splatoon@v1
+      - uses: crosscore/contribution-gallery@v1
         with:
           github_user_name: ${{ github.repository_owner }}
           outputs: |
@@ -111,7 +111,7 @@ Then add to your profile README:
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/<user>/<user>/output/splatoon-dark.svg" />
   <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/<user>/<user>/output/splatoon.svg" />
-  <img alt="contribution-splatoon" src="https://raw.githubusercontent.com/<user>/<user>/output/splatoon-dark.svg" />
+  <img alt="contribution-gallery" src="https://raw.githubusercontent.com/<user>/<user>/output/splatoon-dark.svg" />
 </picture>
 ```
 

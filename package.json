@@ -1,7 +1,7 @@
 {
-  "name": "contribution-splatoon",
+  "name": "contribution-gallery",
   "version": "1.0.0",
-  "description": "Two snakes battle for territory on your GitHub contribution graph — Splatoon style",
+  "description": "Animated art for your GitHub contribution graph — a Splatoon-style territory battle and an ambient gallery of looping scenes",
   "main": "dist/index.js",
   "scripts": {
     "build": "tsx scripts/build.ts",
@@ -11,13 +11,15 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/crosscore/contribution-splatoon.git"
+    "url": "https://github.com/crosscore/contribution-gallery.git"
   },
   "keywords": [
     "github",
     "contribution",
     "snake",
     "splatoon",
+    "ambient",
+    "gallery",
     "svg",
     "animation",
     "github-action"

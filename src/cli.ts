@@ -66,7 +66,7 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  console.log("🦑 contribution-splatoon CLI");
+  console.log("🦑 contribution-gallery CLI");
   console.log("──────────────────────────────");
 
   // Fetch or generate grid

@@ -1,7 +1,7 @@
 import * as esbuild from "esbuild";
 
 async function build() {
-  console.log("🔨 Building contribution-splatoon...");
+  console.log("🔨 Building contribution-gallery...");
 
   await esbuild.build({
     entryPoints: ["src/action/index.ts"],

@@ -1,5 +1,5 @@
-name: "Contribution Splatoon"
-description: "Generate a Splatoon-style territory battle animation on your GitHub contribution graph"
+name: "Contribution Gallery"
+description: "Generate animated SVG art for your GitHub contribution graph — a Splatoon-style territory battle or an ambient gallery of looping scenes"
 author: "crosscore"
 
 inputs:

@@ -15,7 +15,7 @@ jobs:
       contents: write
 
     steps:
-      - name: Checkout contribution-splatoon
+      - name: Checkout contribution-gallery
         uses: actions/checkout@v4
 
       - name: Setup Node.js

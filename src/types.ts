@@ -1,5 +1,5 @@
 // ============================================================
-// Type definitions for contribution-splatoon
+// Type definitions for contribution-gallery
 // ============================================================
 
 /** Direction a snake can move */
