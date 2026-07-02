@@ -53,14 +53,14 @@ An alternative renderer: six quiet, cell-based animation scenes rotate every min
 
 | Scene | Description |
 |-------|-------------|
-| 🌌 Aurora | A teal→blue→violet color field drifts across your active cells |
+| 🌌 Aurora | A teal→blue→violet color field drifts across the whole graph |
 | 💧 Ripple | Waves radiate from your most active cells |
 | 💓 Pulse | The graph breathes; amplitude follows contribution level |
 | 🌧️ Rain | Light drops fall down each column at its own pace |
-| ✨ Fireflies | Active cells glow in and out like fireflies |
+| ✨ Fireflies | Cells glow in and out like fireflies over the graph |
 | 🦠 Life | Conway's Game of Life seeded from your actual contributions |
 
-The scene order is fully shuffled on every regeneration (seeded by generation date), and so are the random details — ripple origins, rain speeds, firefly picks. Five scenes are compact CSS keyframe loops (each cell only carries a phase offset), so the whole file stays around ~200 KB, roughly a third of the splatoon animation.
+Every cell takes part — zero-contribution days shimmer, pulse and glow at a softer intensity, so the whole canvas stays alive. The scene order is fully shuffled on every render, and so are the random details — ripple origins, rain speeds, firefly picks. Five scenes are compact CSS keyframe loops (each cell only carries a phase offset), so the whole file stays around ~200 KB, roughly a third of the splatoon animation.
 
 Enable it with `?mode=ambient` in the action outputs:
 
@@ -71,6 +71,25 @@ outputs: |
 ```
 
 Or via CLI: `npx tsx src/cli.ts --user <name> --mode ambient [--dark]`
+
+### 🔀 Per-refresh shuffle (serverless endpoint)
+
+A committed SVG is static, so its scene order only changes when it is regenerated. For a freshly shuffled order on **every page load**, deploy the included Vercel function and point your README at it:
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fcrosscore%2Fcontribution-gallery)
+
+- `GET /api/ambient` — light theme
+- `GET /api/ambient?theme=dark` — dark theme
+
+The endpoint renders the SVG with a random seed per request and sends `Cache-Control: no-store`, so GitHub's camo proxy re-fetches it on every view. Contribution data comes from [docs/grid.json](docs/grid.json), regenerated daily by CI — no GitHub token is needed at request time (override the data source with the `GRID_URL` env var).
+
+```html
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://<your-project>.vercel.app/api/ambient?theme=dark" />
+  <source media="(prefers-color-scheme: light)" srcset="https://<your-project>.vercel.app/api/ambient" />
+  <img alt="contribution graph ambient animation" src="https://<your-project>.vercel.app/api/ambient?theme=dark" />
+</picture>
+```
 
 ## Quick Start
 
@@ -142,6 +161,8 @@ src/
 │   ├── snake.ts      # Snake state & movement
 │   └── territory.ts  # Score calculation
 └── cli.ts            # Local dev entry point
+api/
+└── ambient.ts        # Vercel function — per-request random ambient SVG
 ```
 
 ## Development

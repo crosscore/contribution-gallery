@@ -1,0 +1,6 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "echo 'serverless functions only — no build step'",
+  "outputDirectory": "docs",
+  "rewrites": [{ "source": "/", "destination": "/api/ambient" }]
+}

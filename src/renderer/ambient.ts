@@ -18,9 +18,10 @@ import {
  *
  * Timeline: 6 scenes x SCENE_SECONDS on one master cycle. Scene groups
  * crossfade via one SMIL opacity <animate> per group. The scene order is
- * fully shuffled by `seed` (days since epoch at generation time), so every
- * regeneration deals a fresh random ordering of all six scenes, and the
- * random details (ripple origins, rain speeds, firefly picks) change too.
+ * fully shuffled by `seed`, so every render deals a fresh random ordering
+ * of all six scenes, and the random details (ripple origins, rain speeds,
+ * firefly picks) change too. Zero-contribution cells take part in every
+ * scene at a softer intensity, so the whole canvas stays alive.
  *
  * Constraint reminder: this SVG is served through GitHub's camo proxy
  * inside an <img>, so only SMIL/CSS animations work — no JS, no external
@@ -110,7 +111,7 @@ function dimVeil(ctx: SceneContext, opacity: number): string {
 
 // ============================================================
 // Scene: aurora — a slow multicolor field drifting diagonally
-// across the cells that have contributions
+// across every cell; empty days shimmer softly too
 // ============================================================
 function buildAurora(ctx: SceneContext): SceneOutput {
   const { grid, colors } = ctx;
@@ -118,10 +119,11 @@ function buildAurora(ctx: SceneContext): SceneOutput {
   const hueDur = 11;
   const shimmerDur = 7.3;
 
-  // Level classes carry the peak (--p) and trough (--q) opacity
-  const levelCss = [1, 2, 3, 4]
+  // Level classes carry the peak (--p) and trough (--q) opacity;
+  // empty cells join in at a subtle intensity
+  const levelCss = [0, 1, 2, 3, 4]
     .map((l) => {
-      const p = 0.3 + 0.16 * l;
+      const p = l > 0 ? 0.3 + 0.16 * l : 0.2;
       return `.a${l}{--p:${num(p)};--q:${num(p * 0.65)}}`;
     })
     .join("");
@@ -135,7 +137,6 @@ function buildAurora(ctx: SceneContext): SceneOutput {
   for (let x = 0; x < grid.width; x++) {
     for (let y = 0; y < grid.height; y++) {
       const lvl = grid.cells[x][y].contributionLevel;
-      if (lvl === 0) continue;
       const a = num((x * 0.42 + y * 0.9) % hueDur);
       const b = num((x * 0.31 + y * 0.55) % shimmerDur);
       parts.push(
@@ -225,8 +226,8 @@ function buildPulse(ctx: SceneContext): SceneOutput {
   const dur = 5.2;
   const bright = palette.contributionColors[4];
 
-  const levelCss = [1, 2, 3, 4]
-    .map((l) => `.b${l}{--p:${num(0.1 + 0.14 * l)}}`)
+  const levelCss = [0, 1, 2, 3, 4]
+    .map((l) => `.b${l}{--p:${num(l > 0 ? 0.1 + 0.14 * l : 0.08)}}`)
     .join("");
   const css =
     `.pu{fill:${bright};fill-opacity:0;animation:pu ${dur}s ease-in-out infinite;animation-delay:var(--d)}` +
@@ -237,7 +238,6 @@ function buildPulse(ctx: SceneContext): SceneOutput {
   for (let x = 0; x < grid.width; x++) {
     for (let y = 0; y < grid.height; y++) {
       const lvl = grid.cells[x][y].contributionLevel;
-      if (lvl === 0) continue;
       const delay = num(((x + y) * 0.26) % dur);
       parts.push(
         `<rect class="c pu b${lvl}" x="${ctx.px(x)}" y="${ctx.py(y)}" style="--d:-${delay}s"/>`
@@ -289,16 +289,15 @@ function buildRain(ctx: SceneContext): SceneOutput {
 }
 
 // ============================================================
-// Scene: fireflies — a seeded handful of active cells glow in
-// and out at their own pace, like fireflies over the graph
+// Scene: fireflies — a seeded handful of cells (dark days
+// included) glow in and out at their own pace over the graph
 // ============================================================
 function buildFireflies(ctx: SceneContext): SceneOutput {
   const { grid, colors, rng } = ctx;
   const candidates: { x: number; y: number; lvl: number }[] = [];
   for (let x = 0; x < grid.width; x++) {
     for (let y = 0; y < grid.height; y++) {
-      const lvl = grid.cells[x][y].contributionLevel;
-      if (lvl >= 1) candidates.push({ x, y, lvl });
+      candidates.push({ x, y, lvl: grid.cells[x][y].contributionLevel });
     }
   }
 
@@ -308,8 +307,8 @@ function buildFireflies(ctx: SceneContext): SceneOutput {
     .map((e) => e.c);
   const picked = shuffled.slice(0, Math.min(70, shuffled.length));
 
-  const levelCss = [1, 2, 3, 4]
-    .map((l) => `.f${l}{--p:${num(0.5 + 0.12 * l)}}`)
+  const levelCss = [0, 1, 2, 3, 4]
+    .map((l) => `.f${l}{--p:${num(l > 0 ? 0.5 + 0.12 * l : 0.4)}}`)
     .join("");
   const css =
     `.ff{fill:${colors.firefly};fill-opacity:0;animation-name:ff;animation-timing-function:ease-in-out;animation-iteration-count:infinite}` +

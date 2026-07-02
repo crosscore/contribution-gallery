@@ -29,6 +29,8 @@ import {
  *   --mode <mode>          Animation mode: splatoon|ambient (default: splatoon)
  *   --seed <n>             Ambient mode: integer seed for scene order/randomness
  *                          (default: days since epoch, so it changes daily)
+ *   --emit-grid <path>     Also write the fetched grid as JSON
+ *                          (feeds the per-request ambient API endpoint)
  *   --strategy <strategy>  AI strategy: aggressive|balanced|random (default: aggressive)
  *   --token <token>        GitHub token for API access
  */
@@ -52,6 +54,7 @@ async function main(): Promise<void> {
   const outputPath = getArg("--output") || defaultOutput;
   const strategy = (getArg("--strategy") || "aggressive") as Strategy;
   const token = getArg("--token") || process.env.GITHUB_TOKEN;
+  const emitGridPath = getArg("--emit-grid");
   const seedArg = getArg("--seed");
   const seed = seedArg !== undefined ? parseInt(seedArg, 10) : Math.floor(Date.now() / 86_400_000);
 
@@ -80,6 +83,15 @@ async function main(): Promise<void> {
   }
 
   console.log(`   Grid: ${grid.width}×${grid.height} (${grid.width * grid.height} cells)`);
+
+  if (emitGridPath) {
+    const gridDir = path.dirname(emitGridPath);
+    if (gridDir !== "." && !fs.existsSync(gridDir)) {
+      fs.mkdirSync(gridDir, { recursive: true });
+    }
+    fs.writeFileSync(emitGridPath, JSON.stringify(grid), "utf-8");
+    console.log(`📁 Saved grid data: ${emitGridPath}`);
+  }
 
   const renderConfig: RenderConfig = {
     ...DEFAULT_RENDER_CONFIG,
