@@ -14,9 +14,12 @@ inputs:
     description: |
       Output file paths, one per line.
       Append ?palette=dark for dark mode variant.
+      Append ?mode=ambient for the ambient multi-scene animation
+      (six quiet scenes rotating every minute) instead of the battle.
       Example:
         dist/splatoon.svg
         dist/splatoon-dark.svg?palette=dark
+        dist/ambient-dark.svg?palette=dark&mode=ambient
     required: false
     default: "dist/splatoon.svg"
   color_snake_1:

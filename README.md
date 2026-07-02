@@ -45,6 +45,33 @@ This achieves **100% grid coverage** with natural variation in territory split.
 
 **[→ Full algorithm documentation](docs/ALGORITHM.md)**
 
+## ✨ Ambient Mode
+
+An alternative renderer: six quiet, cell-based animation scenes rotate every minute on one seamless loop — no reset, no pause.
+
+<img src="docs/ambient-dark.svg" alt="ambient mode demo" width="720" />
+
+| Scene | Description |
+|-------|-------------|
+| 🌌 Aurora | A teal→blue→violet color field drifts across your active cells |
+| 💧 Ripple | Waves radiate from your most active cells |
+| 💓 Pulse | The graph breathes; amplitude follows contribution level |
+| 🌧️ Rain | Light drops fall down each column at its own pace |
+| ✨ Fireflies | Active cells glow in and out like fireflies |
+| 🦠 Life | Conway's Game of Life seeded from your actual contributions |
+
+The scene order rotates daily (seeded by generation date), and so do the random details — ripple origins, rain speeds, firefly picks. Five scenes are compact CSS keyframe loops (each cell only carries a phase offset), so the whole file stays around ~200 KB, roughly a third of the splatoon animation.
+
+Enable it with `?mode=ambient` in the action outputs:
+
+```yaml
+outputs: |
+  dist/ambient.svg?mode=ambient
+  dist/ambient-dark.svg?palette=dark&mode=ambient
+```
+
+Or via CLI: `npx tsx src/cli.ts --user <name> --mode ambient [--dark]`
+
 ## Quick Start
 
 ```yaml
@@ -108,7 +135,8 @@ src/
 │   └── index.ts      # chooseDirection(), BFS, loop detection
 ├── renderer/         # SVG animation generator
 │   ├── grid.ts       # Contribution grid rendering
-│   └── animation.ts  # Keyframe animation engine
+│   ├── animation.ts  # Keyframe animation engine (splatoon battle)
+│   └── ambient.ts    # Ambient mode — six scenes rotating per minute
 ├── game/             # Game loop & territory logic
 │   ├── engine.ts     # Turn-based simulation + stagnation tracking
 │   ├── snake.ts      # Snake state & movement

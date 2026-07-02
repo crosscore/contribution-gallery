@@ -33,11 +33,17 @@ jobs:
       - name: Generate SVG (dark mode)
         run: npx tsx src/cli.ts --user crosscore --token ${{ secrets.GITHUB_TOKEN }} --output docs/splatoon-dark.svg --dark
 
+      - name: Generate ambient SVG (light mode)
+        run: npx tsx src/cli.ts --user crosscore --token ${{ secrets.GITHUB_TOKEN }} --mode ambient --output docs/ambient.svg
+
+      - name: Generate ambient SVG (dark mode)
+        run: npx tsx src/cli.ts --user crosscore --token ${{ secrets.GITHUB_TOKEN }} --mode ambient --output docs/ambient-dark.svg --dark
+
       - name: Commit updated docs/ SVGs (keep-alive)
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add docs/splatoon.svg docs/splatoon-dark.svg
+          git add docs/splatoon.svg docs/splatoon-dark.svg docs/ambient.svg docs/ambient-dark.svg
           git diff --staged --quiet || git commit -m "chore: regenerate SVGs with latest contributions [skip ci]"
           git push
 
@@ -64,3 +70,27 @@ jobs:
           user_email: "github-actions[bot]@users.noreply.github.com"
           user_name: "github-actions[bot]"
           commit_message: "chore: update splatoon-dark.svg [skip ci]"
+
+      - name: Push ambient SVG to crosscore/crosscore
+        uses: dmnemec/copy_file_to_another_repo_action@main
+        env:
+          API_TOKEN_GITHUB: ${{ secrets.PROFILE_REPO_TOKEN }}
+        with:
+          source_file: "docs/ambient.svg"
+          destination_repo: "crosscore/crosscore"
+          destination_branch: "main"
+          user_email: "github-actions[bot]@users.noreply.github.com"
+          user_name: "github-actions[bot]"
+          commit_message: "chore: update ambient.svg [skip ci]"
+
+      - name: Push ambient dark SVG to crosscore/crosscore
+        uses: dmnemec/copy_file_to_another_repo_action@main
+        env:
+          API_TOKEN_GITHUB: ${{ secrets.PROFILE_REPO_TOKEN }}
+        with:
+          source_file: "docs/ambient-dark.svg"
+          destination_repo: "crosscore/crosscore"
+          destination_branch: "main"
+          user_email: "github-actions[bot]@users.noreply.github.com"
+          user_name: "github-actions[bot]"
+          commit_message: "chore: update ambient-dark.svg [skip ci]"

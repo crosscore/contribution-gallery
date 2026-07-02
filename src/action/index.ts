@@ -4,6 +4,7 @@ import * as path from "path";
 import { fetchContributions } from "../fetcher";
 import { runGame } from "../game/engine";
 import { renderAnimatedSVG } from "../renderer/animation";
+import { renderAmbientSVG } from "../renderer/ambient";
 import {
   DEFAULT_GAME_CONFIG,
   DEFAULT_RENDER_CONFIG,
@@ -11,6 +12,7 @@ import {
   DEFAULT_DARK_PALETTE,
   RenderConfig,
   GameConfig,
+  GameResult,
 } from "../types";
 
 async function run(): Promise<void> {
@@ -34,26 +36,37 @@ async function run(): Promise<void> {
       `📊 Grid: ${grid.width}x${grid.height} (${grid.width * grid.height} cells)`
     );
 
-    const gameConfig: GameConfig = {
-      ...DEFAULT_GAME_CONFIG,
-      strategy,
+    // Game simulation is only needed for splatoon outputs — run it lazily
+    let gameResult: GameResult | null = null;
+    const getGameResult = (): GameResult => {
+      if (!gameResult) {
+        const gameConfig: GameConfig = {
+          ...DEFAULT_GAME_CONFIG,
+          strategy,
+        };
+        core.info(`🎮 Running game simulation (strategy: ${strategy})...`);
+        gameResult = runGame(grid, gameConfig);
+        core.info(
+          `✅ Game finished in ${gameResult.frames.length} turns. Score: ${gameResult.finalScore.snake1} vs ${gameResult.finalScore.snake2}`
+        );
+      }
+      return gameResult;
     };
 
-    core.info(`🎮 Running game simulation (strategy: ${strategy})...`);
-    const result = runGame(grid, gameConfig);
-    core.info(
-      `✅ Game finished in ${result.frames.length} turns. Score: ${result.finalScore.snake1} vs ${result.finalScore.snake2}`
-    );
+    // Ambient scene order rotates daily
+    const ambientSeed = Math.floor(Date.now() / 86_400_000);
 
-    // Parse output file paths
+    // Parse output file paths (path?palette=dark&mode=ambient)
     const outputs = outputsRaw
       .split("\n")
       .map((line) => line.trim())
       .filter((line) => line.length > 0);
 
     for (const output of outputs) {
-      const isDark = output.includes("?palette=dark");
-      const filePath = output.replace("?palette=dark", "");
+      const [filePath, query = ""] = output.split("?");
+      const params = new URLSearchParams(query);
+      const isDark = params.get("palette") === "dark";
+      const mode = params.get("mode") === "ambient" ? "ambient" : "splatoon";
 
       const renderConfig: RenderConfig = {
         ...DEFAULT_RENDER_CONFIG,
@@ -67,8 +80,11 @@ async function run(): Promise<void> {
         },
       };
 
-      core.info(`🎨 Rendering ${isDark ? "dark" : "light"} → ${filePath}...`);
-      const svg = renderAnimatedSVG(result, renderConfig);
+      core.info(`🎨 Rendering ${mode} ${isDark ? "dark" : "light"} → ${filePath}...`);
+      const svg =
+        mode === "ambient"
+          ? renderAmbientSVG(grid, renderConfig, ambientSeed)
+          : renderAnimatedSVG(getGameResult(), renderConfig);
 
       // Ensure output directory exists
       const dir = path.dirname(filePath);
