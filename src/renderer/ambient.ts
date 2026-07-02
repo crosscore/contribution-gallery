@@ -18,9 +18,9 @@ import {
  *
  * Timeline: 6 scenes x SCENE_SECONDS on one master cycle. Scene groups
  * crossfade via one SMIL opacity <animate> per group. The scene order is
- * rotated by `seed` (days since epoch at generation time), so which scene
- * a visitor sees first depends on the day the SVG was generated, and the
- * random details (ripple origins, rain speeds, firefly picks) change daily.
+ * fully shuffled by `seed` (days since epoch at generation time), so every
+ * regeneration deals a fresh random ordering of all six scenes, and the
+ * random details (ripple origins, rain speeds, firefly picks) change too.
  *
  * Constraint reminder: this SVG is served through GitHub's camo proxy
  * inside an <img>, so only SMIL/CSS animations work — no JS, no external
@@ -494,7 +494,7 @@ function sceneGroup(
 /**
  * Render the ambient multi-scene SVG.
  *
- * @param seed Integer that rotates the scene order and drives all seeded
+ * @param seed Integer that shuffles the scene order and drives all seeded
  *             randomness. Pass days-since-epoch for a daily-changing SVG.
  */
 export function renderAmbientSVG(
@@ -509,8 +509,14 @@ export function renderAmbientSVG(
   const colors = config.darkMode ? DARK_SCENE_COLORS : LIGHT_SCENE_COLORS;
   const cycleSeconds = SCENES.length * SCENE_SECONDS;
 
-  const rotation = ((seed % SCENES.length) + SCENES.length) % SCENES.length;
-  const ordered = [...SCENES.slice(rotation), ...SCENES.slice(0, rotation)];
+  // Fisher-Yates shuffle of the full scene order, on its own PRNG stream so
+  // the scene-detail randomness below stays independent of the ordering.
+  const orderRng = mulberry32((seed ^ 0x9e3779b9) >>> 0);
+  const ordered = [...SCENES];
+  for (let i = ordered.length - 1; i > 0; i--) {
+    const j = Math.floor(orderRng() * (i + 1));
+    [ordered[i], ordered[j]] = [ordered[j], ordered[i]];
+  }
 
   const rng = mulberry32((seed ^ 0x02f6e2b1) >>> 0);
   const px = (x: number) => MARGIN + x * step;

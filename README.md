@@ -60,7 +60,7 @@ An alternative renderer: six quiet, cell-based animation scenes rotate every min
 | ✨ Fireflies | Active cells glow in and out like fireflies |
 | 🦠 Life | Conway's Game of Life seeded from your actual contributions |
 
-The scene order rotates daily (seeded by generation date), and so do the random details — ripple origins, rain speeds, firefly picks. Five scenes are compact CSS keyframe loops (each cell only carries a phase offset), so the whole file stays around ~200 KB, roughly a third of the splatoon animation.
+The scene order is fully shuffled on every regeneration (seeded by generation date), and so are the random details — ripple origins, rain speeds, firefly picks. Five scenes are compact CSS keyframe loops (each cell only carries a phase offset), so the whole file stays around ~200 KB, roughly a third of the splatoon animation.
 
 Enable it with `?mode=ambient` in the action outputs:
 
