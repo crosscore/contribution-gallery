@@ -142,6 +142,40 @@ export interface RenderConfig {
   darkMode: boolean;
 }
 
+/** A contribution streak with its inclusive date range (YYYY-MM-DD) */
+export interface StreakRange {
+  days: number;
+  start: string;
+  end: string;
+}
+
+/**
+ * Aggregated all-time profile stats, regenerated daily by CI into
+ * docs/stats.json and consumed by the streak / trophy card endpoints.
+ */
+export interface UserStats {
+  login: string;
+  /** ISO timestamp of when the stats were generated */
+  generatedAt: string;
+  /** All-time contribution count (as shown on the profile calendar) */
+  totalContributions: number;
+  /** Date of the first recorded contribution (YYYY-MM-DD) */
+  firstContribution: string;
+  currentStreak: StreakRange;
+  longestStreak: StreakRange;
+  /** All-time commit contributions (incl. restricted/private count) */
+  commits: number;
+  followers: number;
+  /** Total stargazers across owned repositories */
+  stars: number;
+  /** Owned repository count */
+  repos: number;
+  pullRequests: number;
+  issues: number;
+  /** All-time pull request review contributions */
+  reviews: number;
+}
+
 /** Default light palette — Splatoon-inspired: Hot Pink × Cyan */
 export const DEFAULT_LIGHT_PALETTE: ColorPalette = {
   background: "#ffffff",

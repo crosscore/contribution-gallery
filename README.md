@@ -94,6 +94,15 @@ The endpoint renders the SVG with a random seed per request and sends `Cache-Con
 </picture>
 ```
 
+### 📊 Streak & trophy cards
+
+Two more endpoints render matching stat cards in the same design language — rounded contribution cells, quiet keyframe loops, the ambient palette:
+
+- `GET /api/streak` — total contributions, current streak (with a flickering pixel-art flame) and longest streak
+- `GET /api/trophy` — seven ranked achievement badges (commits, followers, stars, repos, PRs, issues, reviews), each a pixel trophy with a glint sweeping across it
+
+Both accept `?theme=dark` and share the ambient graph's 753px width, so the three panels stack cleanly in a profile README. Their numbers come from [docs/stats.json](docs/stats.json) — all-time totals and streaks aggregated daily by CI (`npx tsx src/cli-stats.ts --user <name>`), so no GitHub token is needed at request time.
+
 ## Quick Start
 
 ```yaml
@@ -152,20 +161,27 @@ Then add to your profile README:
 
 ```
 src/
-├── fetcher/          # GitHub contribution graph API
+├── fetcher/          # GitHub API
+│   ├── index.ts      # Contribution calendar → grid
+│   └── stats.ts      # All-time totals & streaks (→ docs/stats.json)
 ├── solver/           # Snake AI — multi-factor heuristic scoring
 │   └── index.ts      # chooseDirection(), BFS, loop detection
 ├── renderer/         # SVG animation generator
 │   ├── grid.ts       # Contribution grid rendering
 │   ├── animation.ts  # Keyframe animation engine (splatoon battle)
-│   └── ambient.ts    # Ambient mode — nine scenes rotating every 15s
+│   ├── ambient.ts    # Ambient mode — nine scenes rotating every 15s
+│   ├── streak.ts     # Streak card — pixel flame + all-time streaks
+│   └── trophy.ts     # Trophy card — seven ranked pixel badges
 ├── game/             # Game loop & territory logic
 │   ├── engine.ts     # Turn-based simulation + stagnation tracking
 │   ├── snake.ts      # Snake state & movement
 │   └── territory.ts  # Score calculation
-└── cli.ts            # Local dev entry point
+├── cli.ts            # Local dev entry point
+└── cli-stats.ts      # CLI: emit docs/stats.json (run daily by CI)
 api/
-└── ambient.ts        # Vercel function — per-request random ambient SVG
+├── ambient.ts        # Vercel function — per-request random ambient SVG
+├── streak.ts         # Vercel function — streak card SVG
+└── trophy.ts         # Vercel function — trophy card SVG
 ```
 
 ## Development
