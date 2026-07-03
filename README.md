@@ -94,14 +94,16 @@ The endpoint renders the SVG with a random seed per request and sends `Cache-Con
 </picture>
 ```
 
-### 📊 Streak & trophy cards
+### 📊 Profile cards (stats, langs, streak, trophy)
 
-Two more endpoints render matching stat cards in the same design language — rounded contribution cells, quiet keyframe loops, the ambient palette:
+Four more endpoints render matching profile cards in the same design language — rounded contribution cells, quiet keyframe loops, the ambient palette:
 
+- `GET /api/stats` — five all-time stats (commits, stars, PRs, issues, followers), each with a shimmering pixel icon and a gradient number
+- `GET /api/langs` — top languages as bars of contribution cells in GitHub's language colors, with a slow opacity wave running along each bar
 - `GET /api/streak` — total contributions, current streak (with a flickering pixel-art flame) and longest streak
 - `GET /api/trophy` — seven ranked achievement badges (commits, followers, stars, repos, PRs, issues, reviews), each a pixel trophy with a glint sweeping across it
 
-Both accept `?theme=dark` and share the ambient graph's 753px width, so the three panels stack cleanly in a profile README. Their numbers come from [docs/stats.json](docs/stats.json) — all-time totals and streaks aggregated daily by CI (`npx tsx src/cli-stats.ts --user <name>`), so no GitHub token is needed at request time.
+All accept `?theme=dark`. The streak and trophy cards share the ambient graph's 753px width; the stats and langs cards are 375px each, so the pair sits side by side at the same total width — the whole profile stacks cleanly. Their numbers come from [docs/stats.json](docs/stats.json) — all-time totals, streaks and per-language byte counts aggregated daily by CI (`npx tsx src/cli-stats.ts --user <name>`), so no GitHub token is needed at request time.
 
 ## Quick Start
 
@@ -170,6 +172,8 @@ src/
 │   ├── grid.ts       # Contribution grid rendering
 │   ├── animation.ts  # Keyframe animation engine (splatoon battle)
 │   ├── ambient.ts    # Ambient mode — nine scenes rotating every 15s
+│   ├── stats.ts      # Stats card — pixel icons + gradient numbers
+│   ├── langs.ts      # Top languages card — cell bars in language colors
 │   ├── streak.ts     # Streak card — pixel flame + all-time streaks
 │   └── trophy.ts     # Trophy card — seven ranked pixel badges
 ├── game/             # Game loop & territory logic
@@ -180,6 +184,8 @@ src/
 └── cli-stats.ts      # CLI: emit docs/stats.json (run daily by CI)
 api/
 ├── ambient.ts        # Vercel function — per-request random ambient SVG
+├── stats.ts          # Vercel function — stats card SVG
+├── langs.ts          # Vercel function — top languages card SVG
 ├── streak.ts         # Vercel function — streak card SVG
 └── trophy.ts         # Vercel function — trophy card SVG
 ```

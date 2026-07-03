@@ -38,6 +38,7 @@ async function main(): Promise<void> {
   console.log(`   Current streak: ${stats.currentStreak.days} days, longest: ${stats.longestStreak.days} days`);
   console.log(`   Commits ${stats.commits} / Followers ${stats.followers} / Stars ${stats.stars} / Repos ${stats.repos}`);
   console.log(`   PRs ${stats.pullRequests} / Issues ${stats.issues} / Reviews ${stats.reviews}`);
+  console.log(`   Top languages: ${stats.languages.slice(0, 5).map((l) => l.name).join(", ")}`);
   console.log(`📁 Saved: ${outputPath}`);
 }
 

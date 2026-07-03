@@ -1,8 +1,8 @@
 {
   "login": "crosscore",
-  "generatedAt": "2026-07-03T05:58:26.256Z",
-  "totalContributions": 28674,
-  "firstContribution": "2019-05-03",
+  "generatedAt": "2026-07-03T06:08:32.051Z",
+  "totalContributions": 18765,
+  "firstContribution": "2019-05-04",
   "currentStreak": {
     "days": 220,
     "start": "2025-11-26",
@@ -13,11 +13,63 @@
     "start": "2025-11-26",
     "end": "2026-07-03"
   },
-  "commits": 27546,
+  "commits": 17637,
   "followers": 5,
   "stars": 1,
-  "repos": 96,
-  "pullRequests": 1024,
-  "issues": 2,
-  "reviews": 0
+  "repos": 171,
+  "pullRequests": 1085,
+  "issues": 3,
+  "reviews": 0,
+  "languages": [
+    {
+      "name": "Python",
+      "color": "#3572A5",
+      "size": 35950379
+    },
+    {
+      "name": "TypeScript",
+      "color": "#3178c6",
+      "size": 31791411
+    },
+    {
+      "name": "Shell",
+      "color": "#89e051",
+      "size": 2176960
+    },
+    {
+      "name": "JavaScript",
+      "color": "#f1e05a",
+      "size": 1081948
+    },
+    {
+      "name": "HTML",
+      "color": "#e34c26",
+      "size": 725965
+    },
+    {
+      "name": "C#",
+      "color": "#178600",
+      "size": 676777
+    },
+    {
+      "name": "Jupyter Notebook",
+      "color": "#DA5B0B",
+      "size": 537784
+    },
+    {
+      "name": "ShaderLab",
+      "color": "#222c37",
+      "size": 387496
+    },
+    {
+      "name": "CSS",
+      "color": "#663399",
+      "size": 244421
+    },
+    {
+      "name": "Go",
+      "color": "#00ADD8",
+      "size": 85097
+    }
+  ]
 }

@@ -1,4 +1,4 @@
-import { StreakRange, UserStats } from "../types";
+import { LanguageStat, StreakRange, UserStats } from "../types";
 
 /**
  * All-time profile stats fetcher for the streak & trophy cards.
@@ -16,7 +16,13 @@ query($login: String!) {
     followers { totalCount }
     repositories(first: 100, ownerAffiliations: OWNER, orderBy: {field: STARGAZERS, direction: DESC}) {
       totalCount
-      nodes { stargazerCount }
+      nodes {
+        stargazerCount
+        isFork
+        languages(first: 10, orderBy: {field: SIZE, direction: DESC}) {
+          edges { size node { name color } }
+        }
+      }
     }
     pullRequests { totalCount }
     issues { totalCount }
@@ -44,7 +50,16 @@ interface ProfileData {
   user: {
     createdAt: string;
     followers: { totalCount: number };
-    repositories: { totalCount: number; nodes: { stargazerCount: number }[] };
+    repositories: {
+      totalCount: number;
+      nodes: {
+        stargazerCount: number;
+        isFork: boolean;
+        languages: {
+          edges: { size: number; node: { name: string; color: string | null } }[];
+        };
+      }[];
+    };
     pullRequests: { totalCount: number };
     issues: { totalCount: number };
   };
@@ -175,6 +190,25 @@ export async function fetchUserStats(username: string, token?: string): Promise<
       ? { days: currentDays, start: currentStart, end: currentEnd }
       : { days: 0, start: last, end: last };
 
+  // Top languages by byte size across owned non-fork repos (forks would
+  // mostly count upstream code, so they are skipped)
+  const langTotals = new Map<string, { color: string | null; size: number }>();
+  for (const repo of profile.user.repositories.nodes) {
+    if (repo.isFork) continue;
+    for (const edge of repo.languages.edges) {
+      const entry = langTotals.get(edge.node.name);
+      if (entry) {
+        entry.size += edge.size;
+      } else {
+        langTotals.set(edge.node.name, { color: edge.node.color, size: edge.size });
+      }
+    }
+  }
+  const languages: LanguageStat[] = [...langTotals.entries()]
+    .map(([name, { color, size }]) => ({ name, color, size }))
+    .sort((a, b) => b.size - a.size)
+    .slice(0, 10);
+
   return {
     login: username,
     generatedAt: now.toISOString(),
@@ -189,5 +223,6 @@ export async function fetchUserStats(username: string, token?: string): Promise<
     pullRequests: profile.user.pullRequests.totalCount,
     issues: profile.user.issues.totalCount,
     reviews,
+    languages,
   };
 }

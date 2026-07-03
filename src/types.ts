@@ -149,9 +149,19 @@ export interface StreakRange {
   end: string;
 }
 
+/** A language's aggregate byte size across owned (non-fork) repositories */
+export interface LanguageStat {
+  name: string;
+  /** GitHub's language color (hex), or null when GitHub has none */
+  color: string | null;
+  /** Total bytes of code across repositories */
+  size: number;
+}
+
 /**
  * Aggregated all-time profile stats, regenerated daily by CI into
- * docs/stats.json and consumed by the streak / trophy card endpoints.
+ * docs/stats.json and consumed by the streak / trophy / stats / langs
+ * card endpoints.
  */
 export interface UserStats {
   login: string;
@@ -174,6 +184,8 @@ export interface UserStats {
   issues: number;
   /** All-time pull request review contributions */
   reviews: number;
+  /** Top languages by byte size, descending (up to 10) */
+  languages: LanguageStat[];
 }
 
 /** Default light palette — Splatoon-inspired: Hot Pink × Cyan */
