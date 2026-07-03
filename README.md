@@ -47,7 +47,7 @@ This achieves **100% grid coverage** with natural variation in territory split.
 
 ## ✨ Ambient Mode
 
-An alternative renderer: six quiet, cell-based animation scenes rotate every minute on one seamless loop — no reset, no pause.
+An alternative renderer: six quiet, cell-based animation scenes rotate every 15 seconds on one seamless loop — no reset, no pause.
 
 <img src="docs/ambient-dark.svg" alt="ambient mode demo" width="720" />
 
@@ -155,7 +155,7 @@ src/
 ├── renderer/         # SVG animation generator
 │   ├── grid.ts       # Contribution grid rendering
 │   ├── animation.ts  # Keyframe animation engine (splatoon battle)
-│   └── ambient.ts    # Ambient mode — six scenes rotating per minute
+│   └── ambient.ts    # Ambient mode — six scenes rotating every 15s
 ├── game/             # Game loop & territory logic
 │   ├── engine.ts     # Turn-based simulation + stagnation tracking
 │   ├── snake.ts      # Snake state & movement
