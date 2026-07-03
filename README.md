@@ -99,9 +99,9 @@ The endpoint renders the SVG with a random seed per request and sends `Cache-Con
 Four more endpoints render matching profile cards in the same design language — rounded contribution cells, quiet keyframe loops, the ambient palette:
 
 - `GET /api/stats` — five all-time stats (commits, stars, PRs, issues, followers), each with a shimmering pixel icon and a gradient number
-- `GET /api/langs` — top languages as bars of contribution cells in GitHub's language colors, with a slow opacity wave running along each bar
-- `GET /api/streak` — total contributions, current streak (with a flickering pixel-art flame) and longest streak
-- `GET /api/trophy` — seven ranked achievement badges (commits, followers, stars, repos, PRs, issues, reviews), each a pixel trophy with a glint sweeping across it
+- `GET /api/langs` — top languages as bars of contribution cells in GitHub's language colors, a band of light periodically sweeping along each bar (colors too dark or too light for the card background are auto-adjusted for contrast)
+- `GET /api/streak` — total contributions, current streak (a pixel-art flame that shimmers cell by cell, breathes a warm glow and sheds drifting embers) and longest streak
+- `GET /api/trophy` — seven ranked achievement badges (commits, followers, stars, repos, PRs, issues, reviews), each a pixel trophy cup with side handles and a diagonal glint sweep — S-tier badges twinkle with sparkles
 
 All accept `?theme=dark`. The streak and trophy cards share the ambient graph's 753px width; the stats and langs cards are 375px each, so the pair sits side by side at the same total width — the whole profile stacks cleanly. Their numbers come from [docs/stats.json](docs/stats.json) — all-time totals, streaks and per-language byte counts aggregated daily by CI (`npx tsx src/cli-stats.ts --user <name>`), so no GitHub token is needed at request time.
 

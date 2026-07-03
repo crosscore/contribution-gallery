@@ -8,8 +8,10 @@ import { UserStats } from "../types";
  *   [ Total Contributions ] | [ pixel flame + Current Streak ] | [ Longest Streak ]
  * The separators are columns of seven cells (one per weekday row of the
  * graph) with a soft cascade; a few faint "firefly" cells drift along the
- * edges. The flame is pixel art built from the same rounded cells, and it
- * flickers via phase-shifted opacity keyframes.
+ * edges. The flame is pixel art built from the same rounded cells: every
+ * cell flickers on its own position-derived phase (so the body shimmers
+ * organically rather than blinking in unison), a warm radial glow breathes
+ * behind it, and tiny embers drift up and fade out above the tip.
  *
  * Served through GitHub's camo proxy inside an <img>: CSS/SMIL only.
  */
@@ -39,6 +41,9 @@ interface CardTheme {
   separator: string;
   flameOuter: string;
   flameCore: string;
+  /** Radial glow behind the flame: color + peak stop opacity */
+  glow: string;
+  glowOpacity: number;
   totalGradient: [string, string];
   streakGradient: [string, string];
   longestGradient: [string, string];
@@ -53,6 +58,8 @@ const DARK_THEME: CardTheme = {
   separator: "#58a6ff",
   flameOuter: "#fb923c",
   flameCore: "#fde047",
+  glow: "#fb923c",
+  glowOpacity: 0.28,
   totalGradient: ["#39d353", "#26a641"],
   streakGradient: ["#fde047", "#fb923c"],
   longestGradient: ["#c084fc", "#a78bfa"],
@@ -67,6 +74,8 @@ const LIGHT_THEME: CardTheme = {
   separator: "#0969da",
   flameOuter: "#ea580c",
   flameCore: "#eab308",
+  glow: "#f59e0b",
+  glowOpacity: 0.14,
   totalGradient: ["#2da44e", "#1a7f37"],
   streakGradient: ["#d97706", "#ea580c"],
   longestGradient: ["#9333ea", "#7c3aed"],
@@ -109,19 +118,42 @@ export function renderStreakSVG(stats: UserStats, dark: boolean): string {
   const flameX = colX[1] - (7 * stepPx - 1) / 2;
   const flameY = 15;
   const flameCells: string[] = [];
-  let flameIndex = 0;
   for (let row = 0; row < FLAME.length; row++) {
     for (let col = 0; col < 7; col++) {
       const kind = FLAME[row][col];
       if (kind === ".") continue;
       const fill = kind === "2" ? theme.flameCore : theme.flameOuter;
       const tip = row <= 2 ? " ft" : "";
+      // Position-derived phase: neighbours flicker close together but never
+      // in unison, so the whole flame shimmers instead of blinking
+      const phase = ((row * 0.37 + col * 0.53) % 1.35).toFixed(2);
       flameCells.push(
-        `<rect class="fc fl p${flameIndex % 3}${tip}" x="${flameX + col * stepPx}" y="${flameY + row * stepPx}" fill="${fill}"/>`
+        `<rect class="fc fl${tip}" x="${flameX + col * stepPx}" y="${flameY + row * stepPx}" fill="${fill}" style="animation-delay:-${phase}s"/>`
       );
-      flameIndex++;
     }
   }
+
+  // --- embers drifting up from the flame, fading as they rise ---
+  const emberSpots: {
+    x: number;
+    y: number;
+    core: boolean;
+    drift: "ea" | "eb";
+    dur: number;
+    delay: number;
+  }[] = [
+    { x: flameX + 12, y: flameY + 20, core: false, drift: "ea", dur: 2.5, delay: 0.4 },
+    { x: flameX + 27, y: flameY + 8, core: true, drift: "eb", dur: 3.1, delay: 1.3 },
+    { x: flameX + 43, y: flameY + 24, core: false, drift: "eb", dur: 2.8, delay: 2.2 },
+    { x: flameX + 20, y: flameY + 30, core: true, drift: "ea", dur: 3.4, delay: 0.9 },
+    { x: flameX + 36, y: flameY + 14, core: true, drift: "ea", dur: 2.3, delay: 1.8 },
+  ];
+  const embers = emberSpots
+    .map(
+      (e) =>
+        `<rect class="em ${e.drift}" x="${e.x}" y="${e.y}" fill="${e.core ? theme.flameCore : theme.flameOuter}" style="animation-duration:${e.dur.toFixed(1)}s;animation-delay:-${e.delay.toFixed(1)}s"/>`
+    )
+    .join("\n    ");
 
   // --- separators: 7 cells per column (one per weekday row), soft cascade ---
   const sepCells: string[] = [];
@@ -170,7 +202,12 @@ export function renderStreakSVG(stats: UserStats, dark: boolean): string {
     `.fl{animation:fl 1.35s ease-in-out infinite}`,
     `.ft{animation-duration:.95s}`,
     `@keyframes fl{0%,100%{fill-opacity:1}50%{fill-opacity:.5}}`,
-    `.p0{animation-delay:0s}.p1{animation-delay:-.45s}.p2{animation-delay:-.9s}`,
+    `.fgl{animation:fgp 3.4s ease-in-out infinite}`,
+    `@keyframes fgp{0%,100%{opacity:.55}50%{opacity:1}}`,
+    `.em{width:3px;height:3px;rx:1px;fill-opacity:0;animation-timing-function:ease-out;animation-iteration-count:infinite}`,
+    `.ea{animation-name:ea}.eb{animation-name:eb}`,
+    `@keyframes ea{0%{transform:translate(0,0);fill-opacity:0}12%{fill-opacity:.85}100%{transform:translate(-5px,-40px);fill-opacity:0}}`,
+    `@keyframes eb{0%{transform:translate(0,0);fill-opacity:0}12%{fill-opacity:.85}100%{transform:translate(4px,-44px);fill-opacity:0}}`,
     `.gl{fill-opacity:.04;animation:gl 5s ease-in-out infinite}`,
     `@keyframes gl{0%,100%{fill-opacity:.04}50%{fill-opacity:var(--m)}}`,
     `.num{font-size:34px;font-weight:700}`,
@@ -192,6 +229,10 @@ export function renderStreakSVG(stats: UserStats, dark: boolean): string {
     <linearGradient id="gl2" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="${theme.longestGradient[0]}"/><stop offset="1" stop-color="${theme.longestGradient[1]}"/>
     </linearGradient>
+    <radialGradient id="fg">
+      <stop offset="0" stop-color="${theme.glow}" stop-opacity="${theme.glowOpacity}"/>
+      <stop offset="1" stop-color="${theme.glow}" stop-opacity="0"/>
+    </radialGradient>
   </defs>
   <style>${css}</style>
   <rect x="0" y="0" width="${WIDTH}" height="${HEIGHT}" fill="${theme.background}" rx="6"/>
@@ -205,6 +246,10 @@ export function renderStreakSVG(stats: UserStats, dark: boolean): string {
     <text class="num" x="${colX[0]}" y="98" fill="url(#gt)">${total}</text>
     <text class="lbl" x="${colX[0]}" y="126">Total Contributions</text>
     <text class="sub" x="${colX[0]}" y="146">${totalRange}</text>
+  </g>
+  <circle class="fgl" cx="${colX[1]}" cy="${flameY + 37}" r="46" fill="url(#fg)"/>
+  <g>
+    ${embers}
   </g>
   <g>
     ${flameCells.join("\n    ")}
