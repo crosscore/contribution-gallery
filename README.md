@@ -2,7 +2,7 @@
 
 # contribution-gallery
 
-**A gallery of animations for your GitHub contribution graph — a Splatoon-style territory battle, plus six ambient scenes.**
+**A gallery of animations for your GitHub contribution graph — a Splatoon-style territory battle, plus nine ambient scenes.**
 
 <img src="docs/splatoon-dark.svg" alt="contribution-gallery demo" width="720" />
 
@@ -47,7 +47,7 @@ This achieves **100% grid coverage** with natural variation in territory split.
 
 ## ✨ Ambient Mode
 
-An alternative renderer: six quiet, cell-based animation scenes rotate every 15 seconds on one seamless loop — no reset, no pause.
+An alternative renderer: nine quiet, cell-based animation scenes rotate every 15 seconds on one seamless loop — no reset, no pause.
 
 <img src="docs/ambient-dark.svg" alt="ambient mode demo" width="720" />
 
@@ -59,8 +59,11 @@ An alternative renderer: six quiet, cell-based animation scenes rotate every 15 
 | 🌧️ Rain | Light drops fall down each column at its own pace |
 | ✨ Fireflies | Cells glow in and out like fireflies over the graph |
 | 🦠 Life | Conway's Game of Life seeded from your actual contributions |
+| 🎆 Fireworks | Colorful shells burst one after another across the graph |
+| 🎚️ Equalizer | Columns bounce like a spectrum analyzer, green fading to red |
+| ☄️ Comet | Two comets streak past in opposite directions, trailing glow |
 
-Every cell takes part — zero-contribution days shimmer, pulse and glow at a softer intensity, so the whole canvas stays alive. The scene order is fully shuffled on every render, and so are the random details — ripple origins, rain speeds, firefly picks. Five scenes are compact CSS keyframe loops (each cell only carries a phase offset), so the whole file stays around ~200 KB, roughly a third of the splatoon animation.
+Every cell takes part — zero-contribution days shimmer, pulse and glow at a softer intensity, so the whole canvas stays alive. The scene order is fully shuffled on every render, and so are the random details — ripple origins, rain speeds, firefly picks, burst positions, comet paths. All scenes except Life are compact CSS keyframe loops (each cell only carries a phase offset), so the whole file stays around ~230 KB, well under half of the splatoon animation.
 
 Enable it with `?mode=ambient` in the action outputs:
 
@@ -155,7 +158,7 @@ src/
 ├── renderer/         # SVG animation generator
 │   ├── grid.ts       # Contribution grid rendering
 │   ├── animation.ts  # Keyframe animation engine (splatoon battle)
-│   └── ambient.ts    # Ambient mode — six scenes rotating every 15s
+│   └── ambient.ts    # Ambient mode — nine scenes rotating every 15s
 ├── game/             # Game loop & territory logic
 │   ├── engine.ts     # Turn-based simulation + stagnation tracking
 │   ├── snake.ts      # Snake state & movement

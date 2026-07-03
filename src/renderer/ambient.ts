@@ -9,19 +9,20 @@ import {
  * Ambient renderer — a rotating gallery of quiet, cell-based animations
  * played on top of the real contribution graph.
  *
- * Five of the six scenes are CSS keyframe loops: the keyframes are defined
- * once per scene, and each cell only carries a class + a negative
- * animation-delay (its phase). This keeps the file an order of magnitude
- * smaller than enumerating frames, and every scene loops seamlessly.
- * The Game of Life scene is inherently event-based, so it uses per-cell
- * SMIL <animate> with discrete keyTimes instead.
+ * All scenes except the Game of Life are CSS keyframe loops: the keyframes
+ * are defined once per scene, and each cell only carries a class + a
+ * negative animation-delay (its phase). This keeps the file an order of
+ * magnitude smaller than enumerating frames, and every scene loops
+ * seamlessly. The Game of Life scene is inherently event-based, so it uses
+ * per-cell SMIL <animate> with discrete keyTimes instead.
  *
- * Timeline: 6 scenes x SCENE_SECONDS on one master cycle. Scene groups
+ * Timeline: SCENES.length x SCENE_SECONDS on one master cycle. Scene groups
  * crossfade via one SMIL opacity <animate> per group. The scene order is
  * fully shuffled by `seed`, so every render deals a fresh random ordering
- * of all six scenes, and the random details (ripple origins, rain speeds,
- * firefly picks) change too. Zero-contribution cells take part in every
- * scene at a softer intensity, so the whole canvas stays alive.
+ * of all scenes, and the random details (ripple origins, rain speeds,
+ * firefly picks, burst positions) change too. Zero-contribution cells take
+ * part in every scene at a softer intensity, so the whole canvas stays
+ * alive.
  *
  * Constraint reminder: this SVG is served through GitHub's camo proxy
  * inside an <img>, so only SMIL/CSS animations work — no JS, no external
@@ -38,6 +39,12 @@ interface SceneColors {
   ripple: string;
   rain: string;
   firefly: string;
+  /** One color per firework burst */
+  fireworks: [string, string, string, string];
+  /** Row colors bottom → top (7 rows) */
+  equalizer: [string, string, string, string, string, string, string];
+  /** One color per comet */
+  comet: [string, string];
 }
 
 const DARK_SCENE_COLORS: SceneColors = {
@@ -45,6 +52,17 @@ const DARK_SCENE_COLORS: SceneColors = {
   ripple: "#7ee2ff",
   rain: "#58a6ff",
   firefly: "#fde047",
+  fireworks: ["#f472b6", "#38bdf8", "#a78bfa", "#fbbf24"],
+  equalizer: [
+    "#22c55e",
+    "#4ade80",
+    "#a3e635",
+    "#facc15",
+    "#fb923c",
+    "#f87171",
+    "#ef4444",
+  ],
+  comet: ["#fcd34d", "#7dd3fc"],
 };
 
 const LIGHT_SCENE_COLORS: SceneColors = {
@@ -52,6 +70,17 @@ const LIGHT_SCENE_COLORS: SceneColors = {
   ripple: "#0550ae",
   rain: "#0969da",
   firefly: "#d97706",
+  fireworks: ["#db2777", "#0284c7", "#7c3aed", "#d97706"],
+  equalizer: [
+    "#15803d",
+    "#16a34a",
+    "#65a30d",
+    "#ca8a04",
+    "#ea580c",
+    "#dc2626",
+    "#b91c1c",
+  ],
+  comet: ["#b45309", "#0369a1"],
 };
 
 /** Deterministic PRNG so output is reproducible for a given seed */
@@ -432,6 +461,174 @@ function buildLife(ctx: SceneContext): SceneOutput {
 }
 
 // ============================================================
+// Scene: fireworks — colorful shells launch one after another
+// across the graph; each cell flashes with its nearest burst,
+// then lingers as afterglow before the sky goes dark again
+// ============================================================
+function buildFireworks(ctx: SceneContext): SceneOutput {
+  const { grid, colors, rng } = ctx;
+  const period = 9;
+  const secPerDist = 0.055;
+  const burstCount = colors.fireworks.length;
+
+  // Bursts spread across the width at staggered launch times
+  const origins: { x: number; y: number; at: number }[] = [];
+  for (let i = 0; i < burstCount; i++) {
+    origins.push({
+      x: ((i + 0.15 + rng() * 0.7) * grid.width) / burstCount,
+      y: 1 + rng() * (grid.height - 2),
+      at: (i * period) / burstCount + rng() * 0.7,
+    });
+  }
+
+  const originCss = colors.fireworks
+    .map((c, i) => `.w${i}{fill:${c}}`)
+    .join("");
+  const css =
+    `.fw{fill-opacity:0;animation:fw ${period}s ease-out infinite;animation-delay:var(--d)}` +
+    `@keyframes fw{0%,100%{fill-opacity:0}1.5%{fill-opacity:var(--p)}8%{fill-opacity:var(--q)}24%{fill-opacity:0}}` +
+    originCss;
+
+  const parts: string[] = [];
+  for (let x = 0; x < grid.width; x++) {
+    for (let y = 0; y < grid.height; y++) {
+      const lvl = grid.cells[x][y].contributionLevel;
+      let best = 0;
+      let bestDist = Infinity;
+      for (let i = 0; i < origins.length; i++) {
+        const d = Math.hypot(origins[i].x - x, origins[i].y - y);
+        if (d < bestDist) {
+          bestDist = d;
+          best = i;
+        }
+      }
+      const delay = num((origins[best].at + bestDist * secPerDist) % period);
+      const levelPeak = lvl > 0 ? 0.55 + 0.11 * lvl : 0.45;
+      const p = levelPeak * Math.max(0.3, 1 - bestDist * 0.035);
+      parts.push(
+        `<rect class="c fw w${best}" x="${ctx.px(x)}" y="${ctx.py(y)}" style="--d:-${delay}s;--p:${num(p)};--q:${num(p * 0.3)}"/>`
+      );
+    }
+  }
+
+  return { css, body: parts.join("\n    ") };
+}
+
+// ============================================================
+// Scene: equalizer — every column bounces like a spectrum
+// analyzer bar at its own pace, green at the bottom shading
+// to red at the top; contribution level sets the brightness
+// ============================================================
+function buildEqualizer(ctx: SceneContext): SceneOutput {
+  const { grid, colors, rng } = ctx;
+  const H = grid.height;
+
+  // A column's bar height follows |sin|; a cell at depth d (0 = bottom
+  // row) is lit while the bar tops its height, so upper rows only flash
+  // around the peak of each bounce
+  const rowCss: string[] = [];
+  for (let d = 0; d < H; d++) {
+    const s = Math.min((d + 0.7) / H, 0.98);
+    const a = (Math.asin(s) / Math.PI) * 100;
+    const lo = Math.max(a - 1.5, 0.2).toFixed(1);
+    const hi = (a + 1.5).toFixed(1);
+    const color = colors.equalizer[Math.min(d, colors.equalizer.length - 1)];
+    rowCss.push(
+      `.g${d}{fill:${color};animation-name:q${d}}` +
+        `@keyframes q${d}{0%,${lo}%{fill-opacity:0}${hi}%,${(100 - a - 1.5).toFixed(1)}%{fill-opacity:var(--p)}${(100 - a + 1.5).toFixed(1)}%,100%{fill-opacity:0}}`
+    );
+  }
+
+  const levelCss = [0, 1, 2, 3, 4]
+    .map((l) => `.e${l}{--p:${num(l > 0 ? 0.5 + 0.12 * l : 0.42)}}`)
+    .join("");
+
+  // Whole columns share duration + phase, so each bar moves as one
+  const columnCss: string[] = [];
+  const parts: string[] = [];
+  for (let x = 0; x < grid.width; x++) {
+    const bounce = 1.5 + rng() * 1.3;
+    const phase = rng() * bounce;
+    columnCss.push(
+      `.u${x}{animation-duration:${num(bounce)}s;animation-delay:-${num(phase)}s}`
+    );
+    for (let y = 0; y < grid.height; y++) {
+      const lvl = grid.cells[x][y].contributionLevel;
+      const depth = H - 1 - y;
+      parts.push(
+        `<rect class="c eq g${depth} e${lvl} u${x}" x="${ctx.px(x)}" y="${ctx.py(y)}"/>`
+      );
+    }
+  }
+
+  const css =
+    `.eq{fill-opacity:0;animation-timing-function:linear;animation-iteration-count:infinite}` +
+    rowCss.join("") +
+    levelCss +
+    columnCss.join("");
+
+  return { css, body: parts.join("\n    ") };
+}
+
+// ============================================================
+// Scene: comet — two comets streak across the sky in opposite
+// directions along gentle sine paths, each trailing a slowly
+// fading glow; far-away cells still twinkle faintly in passing
+// ============================================================
+function buildComet(ctx: SceneContext): SceneOutput {
+  const { grid, colors, rng } = ctx;
+  const W = grid.width;
+  const H = grid.height;
+  const period = 7.5;
+  const travel = 5;
+
+  const comets = colors.comet.map((_, i) => ({
+    at: (i * period) / colors.comet.length + rng() * 0.5,
+    dir: i % 2 === 0 ? 1 : -1,
+    amp: 1.4 + rng() * 1.2,
+    freq: 0.18 + rng() * 0.14,
+    phase: rng() * Math.PI * 2,
+  }));
+
+  const pathY = (c: (typeof comets)[number], x: number): number =>
+    (H - 1) / 2 + c.amp * Math.sin(c.freq * x + c.phase);
+
+  const cometCss = colors.comet.map((c, i) => `.t${i}{fill:${c}}`).join("");
+  const css =
+    `.cm{fill-opacity:0;animation:cm ${period}s linear infinite;animation-delay:var(--d)}` +
+    `@keyframes cm{0%,100%{fill-opacity:0}2%{fill-opacity:var(--p)}12%{fill-opacity:var(--q)}42%{fill-opacity:0}}` +
+    cometCss;
+
+  const parts: string[] = [];
+  for (let x = 0; x < W; x++) {
+    for (let y = 0; y < H; y++) {
+      const lvl = grid.cells[x][y].contributionLevel;
+      // Each cell follows whichever comet passes closer to it
+      let best = 0;
+      let bestG = -1;
+      for (let i = 0; i < comets.length; i++) {
+        const dy = y - pathY(comets[i], x);
+        const g = Math.exp(-(dy * dy) / 1.8);
+        if (g > bestG) {
+          bestG = g;
+          best = i;
+        }
+      }
+      const c = comets[best];
+      const progress = c.dir > 0 ? x : W - 1 - x;
+      const delay = num((c.at + (progress * travel) / (W - 1)) % period);
+      const levelPeak = lvl > 0 ? 0.5 + 0.11 * lvl : 0.4;
+      const p = levelPeak * (0.22 + 0.78 * bestG);
+      parts.push(
+        `<rect class="c cm t${best}" x="${ctx.px(x)}" y="${ctx.py(y)}" style="--d:-${delay}s;--p:${num(p)};--q:${num(p * 0.3)}"/>`
+      );
+    }
+  }
+
+  return { css, body: parts.join("\n    ") };
+}
+
+// ============================================================
 // Assembly
 // ============================================================
 
@@ -449,6 +646,9 @@ const SCENES: SceneDef[] = [
   { name: "rain", build: buildRain, dim: 0.25 },
   { name: "fireflies", build: buildFireflies, dim: 0.35 },
   { name: "life", build: buildLife, dim: 0.55 },
+  { name: "fireworks", build: buildFireworks, dim: 0.5 },
+  { name: "equalizer", build: buildEqualizer, dim: 0.4 },
+  { name: "comet", build: buildComet, dim: 0.5 },
 ];
 
 /**
