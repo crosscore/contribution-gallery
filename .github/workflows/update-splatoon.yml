@@ -27,20 +27,25 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # The calendar/profile queries use GITHUB_TOKEN on purpose: an anonymous
+      # viewer sees ALL private activity as anonymised counts (profile setting),
+      # while a user token only sees the repos it can access. Only the review
+      # search needs the repo-scoped STATS_PAT (private reviews are invisible
+      # to anonymous search).
       - name: Generate SVG (light mode)
-        run: npx tsx src/cli.ts --user crosscore --token ${{ secrets.STATS_PAT || secrets.GITHUB_TOKEN }} --output docs/splatoon.svg
+        run: npx tsx src/cli.ts --user crosscore --token ${{ secrets.GITHUB_TOKEN }} --output docs/splatoon.svg
 
       - name: Generate SVG (dark mode)
-        run: npx tsx src/cli.ts --user crosscore --token ${{ secrets.STATS_PAT || secrets.GITHUB_TOKEN }} --output docs/splatoon-dark.svg --dark
+        run: npx tsx src/cli.ts --user crosscore --token ${{ secrets.GITHUB_TOKEN }} --output docs/splatoon-dark.svg --dark
 
       - name: Generate ambient SVG (light mode) + grid data for the API
-        run: npx tsx src/cli.ts --user crosscore --token ${{ secrets.STATS_PAT || secrets.GITHUB_TOKEN }} --mode ambient --output docs/ambient.svg --emit-grid docs/grid.json
+        run: npx tsx src/cli.ts --user crosscore --token ${{ secrets.GITHUB_TOKEN }} --mode ambient --output docs/ambient.svg --emit-grid docs/grid.json
 
       - name: Generate ambient SVG (dark mode)
-        run: npx tsx src/cli.ts --user crosscore --token ${{ secrets.STATS_PAT || secrets.GITHUB_TOKEN }} --mode ambient --output docs/ambient-dark.svg --dark
+        run: npx tsx src/cli.ts --user crosscore --token ${{ secrets.GITHUB_TOKEN }} --mode ambient --output docs/ambient-dark.svg --dark
 
       - name: Fetch profile stats for the streak & trophy card API
-        run: npx tsx src/cli-stats.ts --user crosscore --token ${{ secrets.STATS_PAT || secrets.GITHUB_TOKEN }} --output docs/stats.json
+        run: npx tsx src/cli-stats.ts --user crosscore --token ${{ secrets.GITHUB_TOKEN }} --reviews-token ${{ secrets.STATS_PAT || secrets.GITHUB_TOKEN }} --output docs/stats.json
 
       - name: Commit updated docs/ SVGs (keep-alive)
         run: |

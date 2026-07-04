@@ -125,8 +125,19 @@ function nextDay(date: string): string {
   return new Date(Date.UTC(y, m - 1, d) + 86_400_000).toISOString().slice(0, 10);
 }
 
-/** Fetch and aggregate all-time stats for a user */
-export async function fetchUserStats(username: string, token?: string): Promise<UserStats> {
+/**
+ * Fetch and aggregate all-time stats for a user.
+ *
+ * `reviewsToken` is used only for the review search; unlike the calendar
+ * queries (where an anonymous viewer still sees private activity as
+ * anonymised counts), search needs a repo-scoped user token to find reviews
+ * on private PRs. Defaults to `token`.
+ */
+export async function fetchUserStats(
+  username: string,
+  token?: string,
+  reviewsToken?: string
+): Promise<UserStats> {
   const profile = await graphql<ProfileData>(PROFILE_QUERY, { login: username }, token);
   if (!profile.user) throw new Error(`User "${username}" not found on GitHub`);
 
@@ -164,7 +175,7 @@ export async function fetchUserStats(username: string, token?: string): Promise<
   const reviewSearch = await graphql<ReviewSearchData>(
     REVIEWS_QUERY,
     { searchQuery: `is:pr reviewed-by:${username}` },
-    token
+    reviewsToken ?? token
   );
   const reviews = reviewSearch.search.issueCount;
 
