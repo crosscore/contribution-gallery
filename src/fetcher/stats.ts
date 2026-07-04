@@ -30,12 +30,19 @@ query($login: String!) {
 }
 `;
 
+const REVIEWS_QUERY = `
+query($searchQuery: String!) {
+  search(query: $searchQuery, type: ISSUE) {
+    issueCount
+  }
+}
+`;
+
 const RANGE_QUERY = `
 query($login: String!, $from: DateTime!, $to: DateTime!) {
   user(login: $login) {
     contributionsCollection(from: $from, to: $to) {
       totalCommitContributions
-      totalPullRequestReviewContributions
       restrictedContributionsCount
       contributionCalendar {
         totalContributions
@@ -65,11 +72,14 @@ interface ProfileData {
   };
 }
 
+interface ReviewSearchData {
+  search: { issueCount: number };
+}
+
 interface RangeData {
   user: {
     contributionsCollection: {
       totalCommitContributions: number;
-      totalPullRequestReviewContributions: number;
       restrictedContributionsCount: number;
       contributionCalendar: {
         totalContributions: number;
@@ -127,7 +137,6 @@ export async function fetchUserStats(username: string, token?: string): Promise<
   const dayCounts = new Map<string, number>();
   let totalContributions = 0;
   let commits = 0;
-  let reviews = 0;
 
   let from = created;
   while (from < now) {
@@ -140,7 +149,6 @@ export async function fetchUserStats(username: string, token?: string): Promise<
     const collection = range.user.contributionsCollection;
     totalContributions += collection.contributionCalendar.totalContributions;
     commits += collection.totalCommitContributions + collection.restrictedContributionsCount;
-    reviews += collection.totalPullRequestReviewContributions;
     for (const week of collection.contributionCalendar.weeks) {
       for (const day of week.contributionDays) {
         dayCounts.set(day.date, day.contributionCount);
@@ -148,6 +156,17 @@ export async function fetchUserStats(username: string, token?: string): Promise<
     }
     from = to;
   }
+
+  // Reviews in private repos never reach totalPullRequestReviewContributions —
+  // they are anonymised into restrictedContributionsCount, which has no
+  // per-type breakdown. Search sees private PRs when the token has repo scope,
+  // so count distinct PRs the user has reviewed instead.
+  const reviewSearch = await graphql<ReviewSearchData>(
+    REVIEWS_QUERY,
+    { searchQuery: `is:pr reviewed-by:${username}` },
+    token
+  );
+  const reviews = reviewSearch.search.issueCount;
 
   const dates = [...dayCounts.keys()].sort();
 
