@@ -7,7 +7,7 @@ import { fetchUserStats } from "./fetcher/stats";
  * Run daily by CI; the streak & trophy card endpoints read the output.
  *
  * Usage:
- *   npx tsx src/cli-stats.ts --user <github_username> [--token <token>] [--output docs/stats.json]
+ *   npx tsx src/cli-stats.ts --user <github_username> [--token <token>] [--private-token <token>] [--output docs/stats.json]
  */
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
@@ -18,7 +18,7 @@ async function main(): Promise<void> {
 
   const username = getArg("--user");
   const token = getArg("--token") || process.env.GITHUB_TOKEN;
-  const reviewsToken = getArg("--reviews-token") || token;
+  const privateToken = getArg("--private-token") || token;
   const outputPath = getArg("--output") || "docs/stats.json";
 
   if (!username) {
@@ -27,7 +27,7 @@ async function main(): Promise<void> {
   }
 
   console.log(`📈 Fetching all-time stats for ${username}...`);
-  const stats = await fetchUserStats(username, token, reviewsToken);
+  const stats = await fetchUserStats(username, token, privateToken);
 
   const dir = path.dirname(outputPath);
   if (dir !== "." && !fs.existsSync(dir)) {

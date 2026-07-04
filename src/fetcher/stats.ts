@@ -25,14 +25,16 @@ query($login: String!) {
       }
     }
     pullRequests { totalCount }
-    issues { totalCount }
   }
 }
 `;
 
-const REVIEWS_QUERY = `
-query($searchQuery: String!) {
-  search(query: $searchQuery, type: ISSUE) {
+const PRIVATE_COUNTS_QUERY = `
+query($login: String!, $reviewsQuery: String!) {
+  user(login: $login) {
+    issues { totalCount }
+  }
+  search(query: $reviewsQuery, type: ISSUE) {
     issueCount
   }
 }
@@ -68,11 +70,11 @@ interface ProfileData {
       }[];
     };
     pullRequests: { totalCount: number };
-    issues: { totalCount: number };
   };
 }
 
-interface ReviewSearchData {
+interface PrivateCountsData {
+  user: { issues: { totalCount: number } };
   search: { issueCount: number };
 }
 
@@ -128,15 +130,15 @@ function nextDay(date: string): string {
 /**
  * Fetch and aggregate all-time stats for a user.
  *
- * `reviewsToken` is used only for the review search; unlike the calendar
- * queries (where an anonymous viewer still sees private activity as
- * anonymised counts), search needs a repo-scoped user token to find reviews
- * on private PRs. Defaults to `token`.
+ * `privateToken` (a repo-scoped user token) is used only for the counts that
+ * need private-repo visibility: the review search and the authored-issue
+ * total. The calendar/profile queries stay on `token` — an anonymous viewer
+ * still sees private activity as anonymised counts. Defaults to `token`.
  */
 export async function fetchUserStats(
   username: string,
   token?: string,
-  reviewsToken?: string
+  privateToken?: string
 ): Promise<UserStats> {
   const profile = await graphql<ProfileData>(PROFILE_QUERY, { login: username }, token);
   if (!profile.user) throw new Error(`User "${username}" not found on GitHub`);
@@ -168,16 +170,19 @@ export async function fetchUserStats(
     from = to;
   }
 
-  // Reviews in private repos never reach totalPullRequestReviewContributions —
-  // they are anonymised into restrictedContributionsCount, which has no
-  // per-type breakdown. Search sees private PRs when the token has repo scope,
-  // so count distinct PRs the user has reviewed instead.
-  const reviewSearch = await graphql<ReviewSearchData>(
-    REVIEWS_QUERY,
-    { searchQuery: `is:pr reviewed-by:${username}` },
-    reviewsToken ?? token
+  // Reviews and issues in private repos are invisible to an anonymous viewer
+  // (they only appear anonymised inside restrictedContributionsCount, which
+  // has no per-type breakdown), so both are fetched with the repo-scoped user
+  // token: search finds private PRs the token can access, and issues.totalCount
+  // is viewer-dependent. Search is NOT used for issues — org IP allowlists can
+  // hide issues from search that totalCount still includes.
+  const privateCounts = await graphql<PrivateCountsData>(
+    PRIVATE_COUNTS_QUERY,
+    { login: username, reviewsQuery: `is:pr reviewed-by:${username}` },
+    privateToken ?? token
   );
-  const reviews = reviewSearch.search.issueCount;
+  const reviews = privateCounts.search.issueCount;
+  const issues = privateCounts.user.issues.totalCount;
 
   const dates = [...dayCounts.keys()].sort();
 
@@ -251,7 +256,7 @@ export async function fetchUserStats(
     stars: profile.user.repositories.nodes.reduce((sum, r) => sum + r.stargazerCount, 0),
     repos: profile.user.repositories.totalCount,
     pullRequests: profile.user.pullRequests.totalCount,
-    issues: profile.user.issues.totalCount,
+    issues,
     reviews,
     languages,
   };

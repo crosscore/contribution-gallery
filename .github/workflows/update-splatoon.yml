@@ -30,8 +30,8 @@ jobs:
       # The calendar/profile queries use GITHUB_TOKEN on purpose: an anonymous
       # viewer sees ALL private activity as anonymised counts (profile setting),
       # while a user token only sees the repos it can access. Only the review
-      # search needs the repo-scoped STATS_PAT (private reviews are invisible
-      # to anonymous search).
+      # search and the authored-issue total need the repo-scoped STATS_PAT
+      # (private reviews/issues are invisible to an anonymous viewer).
       - name: Generate SVG (light mode)
         run: npx tsx src/cli.ts --user crosscore --token ${{ secrets.GITHUB_TOKEN }} --output docs/splatoon.svg
 
@@ -45,7 +45,7 @@ jobs:
         run: npx tsx src/cli.ts --user crosscore --token ${{ secrets.GITHUB_TOKEN }} --mode ambient --output docs/ambient-dark.svg --dark
 
       - name: Fetch profile stats for the streak & trophy card API
-        run: npx tsx src/cli-stats.ts --user crosscore --token ${{ secrets.GITHUB_TOKEN }} --reviews-token ${{ secrets.STATS_PAT || secrets.GITHUB_TOKEN }} --output docs/stats.json
+        run: npx tsx src/cli-stats.ts --user crosscore --token ${{ secrets.GITHUB_TOKEN }} --private-token ${{ secrets.STATS_PAT || secrets.GITHUB_TOKEN }} --output docs/stats.json
 
       - name: Commit updated docs/ SVGs (keep-alive)
         run: |
