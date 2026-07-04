@@ -4,8 +4,9 @@ on:
   push:
     branches: [main]
   schedule:
-    # Run daily at 00:00 UTC (09:00 JST)
-    - cron: "0 0 * * *"
+    # Every 6 hours at minute 17 to dodge top-of-hour cron congestion
+    # (03:17 / 09:17 / 15:17 / 21:17 JST).
+    - cron: "17 */6 * * *"
   workflow_dispatch: # Allow manual trigger
 
 jobs:
