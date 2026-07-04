@@ -1,8 +1,8 @@
 {
   "login": "crosscore",
-  "generatedAt": "2026-07-04T13:26:38.338Z",
-  "totalContributions": 18853,
-  "firstContribution": "2019-05-04",
+  "generatedAt": "2026-07-04T13:30:03.041Z",
+  "totalContributions": 28803,
+  "firstContribution": "2019-05-03",
   "currentStreak": {
     "days": 221,
     "start": "2025-11-26",
@@ -13,63 +13,63 @@
     "start": "2025-11-26",
     "end": "2026-07-04"
   },
-  "commits": 17725,
+  "commits": 27675,
   "followers": 5,
   "stars": 1,
-  "repos": 173,
-  "pullRequests": 1089,
-  "issues": 3,
-  "reviews": 2,
+  "repos": 96,
+  "pullRequests": 1024,
+  "issues": 2,
+  "reviews": 3,
   "languages": [
+    {
+      "name": "C++",
+      "color": "#f34b7d",
+      "size": 21886080
+    },
+    {
+      "name": "C",
+      "color": "#555555",
+      "size": 6302230
+    },
     {
       "name": "Python",
       "color": "#3572A5",
-      "size": 36083173
-    },
-    {
-      "name": "TypeScript",
-      "color": "#3178c6",
-      "size": 31852699
-    },
-    {
-      "name": "Shell",
-      "color": "#89e051",
-      "size": 2176960
-    },
-    {
-      "name": "JavaScript",
-      "color": "#f1e05a",
-      "size": 1064502
-    },
-    {
-      "name": "HTML",
-      "color": "#e34c26",
-      "size": 719667
-    },
-    {
-      "name": "C#",
-      "color": "#178600",
-      "size": 676777
+      "size": 3472585
     },
     {
       "name": "Jupyter Notebook",
       "color": "#DA5B0B",
-      "size": 537784
+      "size": 3444318
     },
     {
-      "name": "ShaderLab",
-      "color": "#222c37",
-      "size": 387496
+      "name": "Cuda",
+      "color": "#3A4E3A",
+      "size": 1821298
     },
     {
-      "name": "CSS",
-      "color": "#663399",
-      "size": 233604
+      "name": "Shell",
+      "color": "#89e051",
+      "size": 1110819
     },
     {
-      "name": "Go",
-      "color": "#00ADD8",
-      "size": 85097
+      "name": "Metal",
+      "color": "#8f14e9",
+      "size": 709695
+    },
+    {
+      "name": "Objective-C",
+      "color": "#438eff",
+      "size": 634043
+    },
+    {
+      "name": "C#",
+      "color": "#178600",
+      "size": 580045
+    },
+    {
+      "name": "HTML",
+      "color": "#e34c26",
+      "size": 338225
     }
   ]
 }
