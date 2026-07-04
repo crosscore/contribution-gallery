@@ -28,19 +28,19 @@ jobs:
         run: npm ci
 
       - name: Generate SVG (light mode)
-        run: npx tsx src/cli.ts --user crosscore --token ${{ secrets.GITHUB_TOKEN }} --output docs/splatoon.svg
+        run: npx tsx src/cli.ts --user crosscore --token ${{ secrets.STATS_PAT || secrets.GITHUB_TOKEN }} --output docs/splatoon.svg
 
       - name: Generate SVG (dark mode)
-        run: npx tsx src/cli.ts --user crosscore --token ${{ secrets.GITHUB_TOKEN }} --output docs/splatoon-dark.svg --dark
+        run: npx tsx src/cli.ts --user crosscore --token ${{ secrets.STATS_PAT || secrets.GITHUB_TOKEN }} --output docs/splatoon-dark.svg --dark
 
       - name: Generate ambient SVG (light mode) + grid data for the API
-        run: npx tsx src/cli.ts --user crosscore --token ${{ secrets.GITHUB_TOKEN }} --mode ambient --output docs/ambient.svg --emit-grid docs/grid.json
+        run: npx tsx src/cli.ts --user crosscore --token ${{ secrets.STATS_PAT || secrets.GITHUB_TOKEN }} --mode ambient --output docs/ambient.svg --emit-grid docs/grid.json
 
       - name: Generate ambient SVG (dark mode)
-        run: npx tsx src/cli.ts --user crosscore --token ${{ secrets.GITHUB_TOKEN }} --mode ambient --output docs/ambient-dark.svg --dark
+        run: npx tsx src/cli.ts --user crosscore --token ${{ secrets.STATS_PAT || secrets.GITHUB_TOKEN }} --mode ambient --output docs/ambient-dark.svg --dark
 
       - name: Fetch profile stats for the streak & trophy card API
-        run: npx tsx src/cli-stats.ts --user crosscore --token ${{ secrets.GITHUB_TOKEN }} --output docs/stats.json
+        run: npx tsx src/cli-stats.ts --user crosscore --token ${{ secrets.STATS_PAT || secrets.GITHUB_TOKEN }} --output docs/stats.json
 
       - name: Commit updated docs/ SVGs (keep-alive)
         run: |
