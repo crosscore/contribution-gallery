@@ -1,4 +1,6 @@
 import { LanguageStat, StreakRange, UserStats } from "../types";
+import { githubGraphQL } from "./graphql";
+import { addDays, fetchCalendarRange } from "./calendar";
 
 /**
  * All-time profile stats fetcher for the streak & trophy cards.
@@ -40,21 +42,6 @@ query($login: String!, $reviewsQuery: String!) {
 }
 `;
 
-const RANGE_QUERY = `
-query($login: String!, $from: DateTime!, $to: DateTime!) {
-  user(login: $login) {
-    contributionsCollection(from: $from, to: $to) {
-      totalCommitContributions
-      restrictedContributionsCount
-      contributionCalendar {
-        totalContributions
-        weeks { contributionDays { date contributionCount } }
-      }
-    }
-  }
-}
-`;
-
 interface ProfileData {
   user: {
     createdAt: string;
@@ -76,43 +63,6 @@ interface ProfileData {
 interface PrivateCountsData {
   user: { issues: { totalCount: number } };
   search: { issueCount: number };
-}
-
-interface RangeData {
-  user: {
-    contributionsCollection: {
-      totalCommitContributions: number;
-      restrictedContributionsCount: number;
-      contributionCalendar: {
-        totalContributions: number;
-        weeks: { contributionDays: { date: string; contributionCount: number }[] }[];
-      };
-    };
-  };
-}
-
-async function graphql<T>(
-  query: string,
-  variables: Record<string, string>,
-  token?: string
-): Promise<T> {
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
-  if (token) headers["Authorization"] = `bearer ${token}`;
-
-  const response = await fetch("https://api.github.com/graphql", {
-    method: "POST",
-    headers,
-    body: JSON.stringify({ query, variables }),
-  });
-  if (!response.ok) {
-    throw new Error(`GitHub API request failed: ${response.status} ${response.statusText}`);
-  }
-  const json = (await response.json()) as { data?: T; errors?: { message: string }[] };
-  if (json.errors?.length) {
-    throw new Error(`GitHub GraphQL error: ${json.errors[0].message}`);
-  }
-  if (!json.data) throw new Error("GitHub GraphQL returned no data");
-  return json.data;
 }
 
 /** YYYY-MM-DD of the day before (UTC arithmetic on date strings) */
@@ -140,34 +90,32 @@ export async function fetchUserStats(
   token?: string,
   privateToken?: string
 ): Promise<UserStats> {
-  const profile = await graphql<ProfileData>(PROFILE_QUERY, { login: username }, token);
+  const profile = await githubGraphQL<ProfileData>(PROFILE_QUERY, { login: username }, token);
   if (!profile.user) throw new Error(`User "${username}" not found on GitHub`);
 
   const created = new Date(profile.user.createdAt);
   const now = new Date();
 
-  // Collect daily counts + per-type totals over consecutive 1-year windows
+  // Collect daily counts + per-type totals over consecutive windows of at
+  // most one year. fetchCalendarRange splits any window that exceeds GitHub's
+  // per-query resource limit. Windows include both boundary dates, so each
+  // one starts the day after the previous window's end (no double counting).
   const dayCounts = new Map<string, number>();
   let totalContributions = 0;
   let commits = 0;
 
-  let from = created;
-  while (from < now) {
-    const to = new Date(Math.min(from.getTime() + 365 * 86_400_000, now.getTime()));
-    const range = await graphql<RangeData>(
-      RANGE_QUERY,
-      { login: username, from: from.toISOString(), to: to.toISOString() },
-      token
-    );
-    const collection = range.user.contributionsCollection;
-    totalContributions += collection.contributionCalendar.totalContributions;
-    commits += collection.totalCommitContributions + collection.restrictedContributionsCount;
-    for (const week of collection.contributionCalendar.weeks) {
-      for (const day of week.contributionDays) {
-        dayCounts.set(day.date, day.contributionCount);
-      }
+  const today = now.toISOString().slice(0, 10);
+  let from = created.toISOString().slice(0, 10);
+  while (from <= today) {
+    const yearEnd = addDays(from, 364);
+    const to = yearEnd < today ? yearEnd : today;
+    const range = await fetchCalendarRange(username, from, to, token);
+    totalContributions += range.totalContributions;
+    commits += range.totalCommitContributions + range.restrictedContributionsCount;
+    for (const day of range.days) {
+      dayCounts.set(day.date, day.contributionCount);
     }
-    from = to;
+    from = addDays(to, 1);
   }
 
   // Reviews and issues in private repos are invisible to an anonymous viewer
@@ -176,7 +124,7 @@ export async function fetchUserStats(
   // token: search finds private PRs the token can access, and issues.totalCount
   // is viewer-dependent. Search is NOT used for issues — org IP allowlists can
   // hide issues from search that totalCount still includes.
-  const privateCounts = await graphql<PrivateCountsData>(
+  const privateCounts = await githubGraphQL<PrivateCountsData>(
     PRIVATE_COUNTS_QUERY,
     { login: username, reviewsQuery: `is:pr reviewed-by:${username}` },
     privateToken ?? token

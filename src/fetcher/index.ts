@@ -1,4 +1,6 @@
 import { Cell, CellOwner, ContributionLevel, Grid } from "../types";
+import { githubGraphQL, isResourceLimited } from "./graphql";
+import { addDays, fetchCalendarRange, CalendarDay } from "./calendar";
 
 /** GraphQL query to fetch contribution calendar */
 const CONTRIBUTION_QUERY = `
@@ -50,17 +52,15 @@ interface ContributionWeek {
   contributionDays: ContributionDay[];
 }
 
-interface GraphQLResponse {
-  data: {
-    user: {
-      contributionsCollection: {
-        contributionCalendar: {
-          totalContributions: number;
-          weeks: ContributionWeek[];
-        };
+interface ContributionData {
+  user: {
+    contributionsCollection: {
+      contributionCalendar: {
+        totalContributions: number;
+        weeks: ContributionWeek[];
       };
     };
-  };
+  } | null;
 }
 
 /**
@@ -70,38 +70,75 @@ export async function fetchContributions(
   username: string,
   token?: string
 ): Promise<Grid> {
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-  };
-
-  if (token) {
-    headers["Authorization"] = `bearer ${token}`;
-  }
-
-  const response = await fetch("https://api.github.com/graphql", {
-    method: "POST",
-    headers,
-    body: JSON.stringify({
-      query: CONTRIBUTION_QUERY,
-      variables: { login: username },
-    }),
-  });
-
-  if (!response.ok) {
-    throw new Error(
-      `GitHub API request failed: ${response.status} ${response.statusText}`
+  try {
+    const data = await githubGraphQL<ContributionData>(
+      CONTRIBUTION_QUERY,
+      { login: username },
+      token
     );
+
+    if (!data.user) {
+      throw new Error(`User "${username}" not found on GitHub`);
+    }
+
+    const weeks = data.user.contributionsCollection.contributionCalendar.weeks;
+    return weeksToGrid(weeks);
+  } catch (error) {
+    // Very active accounts exceed GitHub's per-query resource limit for the
+    // full-year calendar; fall back to fetching the year in smaller windows.
+    if (!isResourceLimited(error)) throw error;
+    console.error(
+      "Full-year calendar query exceeded GitHub resource limits, fetching in windows..."
+    );
+    const today = new Date().toISOString().slice(0, 10);
+    const range = await fetchCalendarRange(
+      username,
+      addDays(today, -364),
+      today,
+      token
+    );
+    return daysToGrid(range.days);
+  }
+}
+
+/** Quartile level relative to the year's busiest day (mirrors GitHub's scale) */
+function countToLevel(count: number, max: number): ContributionLevel {
+  if (count <= 0 || max <= 0) return 0;
+  return Math.min(4, Math.max(1, Math.ceil((count / max) * 4))) as ContributionLevel;
+}
+
+/**
+ * Build a grid from windowed calendar days. Unlike the single-query path
+ * there are no per-day colors here (they are window-relative), so levels are
+ * computed from the raw counts instead.
+ */
+function daysToGrid(days: CalendarDay[]): Grid {
+  const max = days.reduce((m, d) => Math.max(m, d.contributionCount), 0);
+
+  const weeks: CalendarDay[][] = [];
+  for (const day of days) {
+    if (day.weekday === 0 || weeks.length === 0) weeks.push([]);
+    weeks[weeks.length - 1].push(day);
   }
 
-  const json = (await response.json()) as GraphQLResponse;
+  const width = weeks.length;
+  const height = 7;
+  const cells: Cell[][] = [];
 
-  if (!json.data?.user) {
-    throw new Error(`User "${username}" not found on GitHub`);
+  for (let x = 0; x < width; x++) {
+    cells[x] = [];
+    for (let y = 0; y < height; y++) {
+      cells[x][y] = { x, y, contributionLevel: 0, owner: CellOwner.None };
+    }
+    for (const day of weeks[x]) {
+      cells[x][day.weekday].contributionLevel = countToLevel(
+        day.contributionCount,
+        max
+      );
+    }
   }
 
-  const weeks =
-    json.data.user.contributionsCollection.contributionCalendar.weeks;
-  return weeksToGrid(weeks);
+  return { cells, width, height };
 }
 
 /**
