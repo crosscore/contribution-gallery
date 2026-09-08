@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "gallery-preview",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["tsx", "watch", "--include", "src/**/*.ts", "--include", "docs/*.json", "--include", "scripts/preview.ts", "scripts/preview.ts"],
+      "port": 4173
+    }
+  ]
+}

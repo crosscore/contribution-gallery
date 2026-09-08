@@ -4,10 +4,10 @@ import {
   ColorPalette,
   DEFAULT_RENDER_CONFIG,
 } from "../types";
-import { cardSurface, galleryCss, galleryTheme, pixelMark } from "./theme";
+import { cardSurface, galleryCss, galleryTheme, GalleryTheme, pixelMark } from "./theme";
 
 /**
- * Ambient renderer — a rotating gallery of quiet, cell-based animations
+ * Ambient renderer — a rotating gallery of quiet, cell-based light scenes
  * played on top of the real contribution graph.
  *
  * All scenes except the Game of Life are CSS keyframe loops: the keyframes
@@ -15,15 +15,21 @@ import { cardSurface, galleryCss, galleryTheme, pixelMark } from "./theme";
  * negative animation-delay (its phase). This keeps the file an order of
  * magnitude smaller than enumerating frames, and every scene loops
  * seamlessly. The Game of Life scene is inherently event-based, so it uses
- * per-cell SMIL <animate> with discrete keyTimes instead.
+ * per-cell SMIL <animate> with short linear ramps between its states.
+ *
+ * Visual system: every scene draws from one palette per theme — the same
+ * teal → sky → violet spectrum as the heading, plus a single warm amber —
+ * so the nine scenes read as one piece rather than nine effects. A blurred
+ * <use> copy of the scene layer sits underneath the crisp cells and gives
+ * lit cells a soft bloom at no file-size cost.
  *
  * Timeline: SCENES.length x SCENE_SECONDS on one master cycle. Scene groups
- * crossfade via one SMIL opacity <animate> per group. The scene order is
- * fully shuffled by `seed`, so every render deals a fresh random ordering
- * of all scenes, and the random details (ripple origins, rain speeds,
- * firefly picks, burst positions) change too. Zero-contribution cells take
- * part in every scene at a softer intensity, so the whole canvas stays
- * alive.
+ * crossfade with eased SMIL opacity envelopes. The scene order is fully
+ * shuffled by `seed`, so every render deals a fresh random ordering of all
+ * scenes, and the random details (ripple origins, rain speeds, firefly
+ * picks, burst positions, comet paths) change too. Zero-contribution cells
+ * take part in every scene at a softer intensity, so the whole canvas
+ * stays alive.
  *
  * Constraint reminder: this SVG is served through GitHub's camo proxy
  * inside an <img>, so only SMIL/CSS animations work — no JS, no external
@@ -31,57 +37,50 @@ import { cardSurface, galleryCss, galleryTheme, pixelMark } from "./theme";
  */
 
 const SCENE_SECONDS = 15;
-const FADE_SECONDS = 2;
+const FADE_SECONDS = 2.5;
+const LABEL_FADE = 0.35;
 const MARGIN = 7;
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 /** Accent colors used by scenes, per theme */
 interface SceneColors {
   aurora: [string, string, string];
   ripple: string;
+  /** Tide rows, sea floor → crest (7 rows) */
+  tide: string[];
   rain: string;
   firefly: string;
+  life: string;
   /** One color per firework burst */
   fireworks: [string, string, string, string];
-  /** Row colors bottom → top (7 rows) */
-  equalizer: [string, string, string, string, string, string, string];
+  /** Equalizer rows, bottom → top (7 rows) */
+  equalizer: string[];
   /** One color per comet */
   comet: [string, string];
 }
 
 const DARK_SCENE_COLORS: SceneColors = {
-  aurora: ["#2dd4bf", "#60a5fa", "#c084fc"],
-  ripple: "#7ee2ff",
-  rain: "#58a6ff",
-  firefly: "#fde047",
-  fireworks: ["#f472b6", "#38bdf8", "#a78bfa", "#fbbf24"],
-  equalizer: [
-    "#22c55e",
-    "#4ade80",
-    "#a3e635",
-    "#facc15",
-    "#fb923c",
-    "#f87171",
-    "#ef4444",
-  ],
+  aurora: ["#5eead4", "#7dd3fc", "#c4b5fd"],
+  ripple: "#9be7ff",
+  tide: ["#0f766e", "#14b8a6", "#2dd4bf", "#5eead4", "#99f6e4", "#ccfbf1", "#f0fdfa"],
+  rain: "#8ab4ff",
+  firefly: "#fcd34d",
+  life: "#b9f6ca",
+  fireworks: ["#f9a8d4", "#7dd3fc", "#c4b5fd", "#fcd34d"],
+  equalizer: ["#39d353", "#4ade80", "#56e0bd", "#67e8f9", "#7dd3fc", "#a5b4fc", "#c4b5fd"],
   comet: ["#fcd34d", "#7dd3fc"],
 };
 
 const LIGHT_SCENE_COLORS: SceneColors = {
-  aurora: ["#0d9488", "#2563eb", "#9333ea"],
-  ripple: "#0550ae",
-  rain: "#0969da",
+  aurora: ["#0d9488", "#2563eb", "#7c3aed"],
+  ripple: "#0369a1",
+  tide: ["#99f6e4", "#5eead4", "#2dd4bf", "#14b8a6", "#0d9488", "#0f766e", "#115e59"],
+  rain: "#2563eb",
   firefly: "#d97706",
+  life: "#1a7f37",
   fireworks: ["#db2777", "#0284c7", "#7c3aed", "#d97706"],
-  equalizer: [
-    "#15803d",
-    "#16a34a",
-    "#65a30d",
-    "#ca8a04",
-    "#ea580c",
-    "#dc2626",
-    "#b91c1c",
-  ],
-  comet: ["#b45309", "#0369a1"],
+  equalizer: ["#2da44e", "#1f9e7a", "#0d9488", "#0891b2", "#2563eb", "#4f46e5", "#7c3aed"],
+  comet: ["#d97706", "#0369a1"],
 };
 
 /** Deterministic PRNG so output is reproducible for a given seed */
@@ -109,9 +108,6 @@ interface SceneContext {
   cycleSeconds: number;
   /** Absolute start time (s) of this scene's window on the master cycle */
   windowStart: number;
-  /** SVG dimensions, for scene-wide dimming overlays */
-  svgWidth: number;
-  svgHeight: number;
 }
 
 interface SceneOutput {
@@ -125,7 +121,7 @@ type SceneBuilder = (ctx: SceneContext) => SceneOutput;
 
 /** Fraction of the master cycle, formatted for keyTimes */
 function frac(seconds: number, cycleSeconds: number): string {
-  return (seconds / cycleSeconds).toFixed(6);
+  return (seconds / cycleSeconds).toFixed(5);
 }
 
 /** Trim needless zeros: 0.50 -> .5, 3.00 -> 3 */
@@ -133,10 +129,11 @@ function num(n: number): string {
   return parseFloat(n.toFixed(2)).toString().replace(/^0\./, ".");
 }
 
-/** A translucent full-canvas veil so a scene can dim the base graph */
-function dimVeil(ctx: SceneContext, opacity: number): string {
-  if (opacity <= 0) return "";
-  return `<rect x="0" y="0" width="${ctx.svgWidth}" height="${ctx.svgHeight}" fill="${ctx.palette.background}" fill-opacity="${num(opacity)}" />`;
+/** Cell classes carrying the peak (--p) and trough (--q) opacity per contribution level */
+function levelCss(prefix: string, peak: (level: number) => number, troughRatio = 0): string {
+  return [0, 1, 2, 3, 4]
+    .map((l) => `.${prefix}${l}{--p:${num(peak(l))}${troughRatio ? `;--q:${num(peak(l) * troughRatio)}` : ""}}`)
+    .join("");
 }
 
 // ============================================================
@@ -146,29 +143,21 @@ function dimVeil(ctx: SceneContext, opacity: number): string {
 function buildAurora(ctx: SceneContext): SceneOutput {
   const { grid, colors } = ctx;
   const [c0, c1, c2] = colors.aurora;
-  const hueDur = 11;
-  const shimmerDur = 7.3;
+  const hueDur = 14;
+  const shimmerDur = 8.2;
 
-  // Level classes carry the peak (--p) and trough (--q) opacity;
-  // empty cells join in at a subtle intensity
-  const levelCss = [0, 1, 2, 3, 4]
-    .map((l) => {
-      const p = l > 0 ? 0.3 + 0.16 * l : 0.2;
-      return `.a${l}{--p:${num(p)};--q:${num(p * 0.65)}}`;
-    })
-    .join("");
   const css =
     `.au{fill:${c0};fill-opacity:var(--p);animation-name:auh,aus;animation-duration:${hueDur}s,${shimmerDur}s;animation-timing-function:linear,ease-in-out;animation-iteration-count:infinite,infinite;animation-delay:var(--a),var(--b)}` +
     `@keyframes auh{0%,100%{fill:${c0}}34%{fill:${c1}}67%{fill:${c2}}}` +
     `@keyframes aus{0%,100%{fill-opacity:var(--q)}50%{fill-opacity:var(--p)}}` +
-    levelCss;
+    levelCss("a", (l) => (l > 0 ? 0.3 + 0.16 * l : 0.2), 0.6);
 
   const parts: string[] = [];
   for (let x = 0; x < grid.width; x++) {
     for (let y = 0; y < grid.height; y++) {
       const lvl = grid.cells[x][y].contributionLevel;
-      const a = num((x * 0.42 + y * 0.9) % hueDur);
-      const b = num((x * 0.31 + y * 0.55) % shimmerDur);
+      const a = num((x * 0.5 + y * 1.1) % hueDur);
+      const b = num((x * 0.33 + y * 0.6) % shimmerDur);
       parts.push(
         `<rect class="c au a${lvl}" x="${ctx.px(x)}" y="${ctx.py(y)}" style="--a:-${a}s;--b:-${b}s"/>`
       );
@@ -180,11 +169,11 @@ function buildAurora(ctx: SceneContext): SceneOutput {
 
 // ============================================================
 // Scene: ripple — waves radiating from the most active cells;
-// the wave brightens every cell it passes, active cells more
+// each wave brightens the cells it passes and leaves a soft wake
 // ============================================================
 function buildRipple(ctx: SceneContext): SceneOutput {
   const { grid, colors, rng } = ctx;
-  const period = 7.2;
+  const period = 7.6;
   const secPerDist = 0.24;
 
   // Pick up to 3 well-separated origins among high-activity cells
@@ -222,13 +211,10 @@ function buildRipple(ctx: SceneContext): SceneOutput {
   }
   if (origins.length === 0) origins.push(shuffled[0]);
 
-  const levelCss = [0, 1, 2, 3, 4]
-    .map((l) => `.r${l}{--p:${num(l > 0 ? 0.35 + 0.15 * l : 0.3)}}`)
-    .join("");
   const css =
     `.rp{fill:${colors.ripple};fill-opacity:0;animation:rp ${period}s linear infinite;animation-delay:var(--d)}` +
-    `@keyframes rp{0%,32%,100%{fill-opacity:0}5%{fill-opacity:var(--p)}}` +
-    levelCss;
+    `@keyframes rp{0%,36%,100%{fill-opacity:0}4%{fill-opacity:var(--p)}14%{fill-opacity:var(--q)}}` +
+    levelCss("r", (l) => (l > 0 ? 0.38 + 0.15 * l : 0.3), 0.45);
 
   const parts: string[] = [];
   for (let x = 0; x < grid.width; x++) {
@@ -248,32 +234,59 @@ function buildRipple(ctx: SceneContext): SceneOutput {
 }
 
 // ============================================================
-// Scene: pulse — the whole graph breathes; a soft brightness
-// wave rolls diagonally, amplitude following contribution level
+// Scene: tide — one long sine wave travels across the year,
+// deep teal at the sea floor rising to pale foam at each crest;
+// the whole graph rolls as a single coherent swell
 // ============================================================
-function buildPulse(ctx: SceneContext): SceneOutput {
-  const { grid, palette } = ctx;
-  const dur = 5.2;
-  const bright = palette.contributionColors[4];
+function buildTide(ctx: SceneContext): SceneOutput {
+  const { grid, colors } = ctx;
+  const W = grid.width;
+  const H = grid.height;
+  const period = 6.8;
+  const wavelengths = 1.35;
+  const soft = 3.5;
 
-  const levelCss = [0, 1, 2, 3, 4]
-    .map((l) => `.b${l}{--p:${num(l > 0 ? 0.1 + 0.14 * l : 0.08)}}`)
-    .join("");
-  const css =
-    `.pu{fill:${bright};fill-opacity:0;animation:pu ${dur}s ease-in-out infinite;animation-delay:var(--d)}` +
-    `@keyframes pu{0%,100%{fill-opacity:0}50%{fill-opacity:var(--p)}}` +
-    levelCss;
+  // A cell at depth d (0 = bottom row) is lit while the water level
+  // 1 + 3·(1 + sin θ) tops it; θ starts at the trough so every window
+  // sits inside a single period without wrapping
+  const rowCss: string[] = [];
+  for (let d = 0; d < H; d++) {
+    const color = colors.tide[Math.min(d, colors.tide.length - 1)];
+    const v = (d - 3.5) / 3;
+    if (v <= -1) {
+      rowCss.push(`.h${d}{fill:${color};fill-opacity:var(--p);animation:none}`);
+      continue;
+    }
+    const a = ((Math.asin(v) + Math.PI / 2) / (2 * Math.PI)) * 100;
+    const b = ((3 * Math.PI / 2 - Math.asin(v)) / (2 * Math.PI)) * 100;
+    const lo0 = Math.max(a - soft, 0).toFixed(1);
+    const lo1 = Math.min(a + soft, b).toFixed(1);
+    const hi0 = Math.max(b - soft, a).toFixed(1);
+    const hi1 = Math.min(b + soft, 100).toFixed(1);
+    rowCss.push(
+      `.h${d}{fill:${color};animation-name:tw${d}}` +
+        `@keyframes tw${d}{0%,${lo0}%{fill-opacity:0}${lo1}%,${hi0}%{fill-opacity:var(--p)}${hi1}%,100%{fill-opacity:0}}`
+    );
+  }
 
+  const columnCss: string[] = [];
   const parts: string[] = [];
-  for (let x = 0; x < grid.width; x++) {
-    for (let y = 0; y < grid.height; y++) {
+  for (let x = 0; x < W; x++) {
+    const delay = (((W - 1 - x) / (W - 1)) * wavelengths * period) % period;
+    columnCss.push(`.v${x}{animation-delay:-${num(delay)}s}`);
+    for (let y = 0; y < H; y++) {
       const lvl = grid.cells[x][y].contributionLevel;
-      const delay = num(((x + y) * 0.26) % dur);
       parts.push(
-        `<rect class="c pu b${lvl}" x="${ctx.px(x)}" y="${ctx.py(y)}" style="--d:-${delay}s"/>`
+        `<rect class="c td h${H - 1 - y} o${lvl} v${x}" x="${ctx.px(x)}" y="${ctx.py(y)}"/>`
       );
     }
   }
+
+  const css =
+    `.td{fill-opacity:0;animation-duration:${period}s;animation-timing-function:linear;animation-iteration-count:infinite}` +
+    rowCss.join("") +
+    levelCss("o", (l) => (l > 0 ? 0.5 + 0.11 * l : 0.42)) +
+    columnCss.join("");
 
   return { css, body: parts.join("\n    ") };
 }
@@ -285,13 +298,6 @@ function buildPulse(ctx: SceneContext): SceneOutput {
 function buildRain(ctx: SceneContext): SceneOutput {
   const { grid, colors, rng } = ctx;
   const secPerRow = 0.085;
-
-  const levelCss = [0, 1, 2, 3, 4]
-    .map((l) => {
-      const p = l > 0 ? 0.45 + 0.13 * l : 0.4;
-      return `.n${l}{--p:${num(p)};--q:${num(p * 0.12)}}`;
-    })
-    .join("");
 
   // Per-column duration classes (each column rains at its own pace)
   const columnCss: string[] = [];
@@ -312,7 +318,7 @@ function buildRain(ctx: SceneContext): SceneOutput {
   const css =
     `.rn{fill:${colors.rain};fill-opacity:0;animation-name:rn;animation-timing-function:linear;animation-iteration-count:infinite;animation-delay:var(--d)}` +
     `@keyframes rn{0%,100%{fill-opacity:0}3.5%{fill-opacity:var(--p)}40%{fill-opacity:var(--q)}}` +
-    levelCss +
+    levelCss("n", (l) => (l > 0 ? 0.45 + 0.13 * l : 0.4), 0.12) +
     columnCss.join("");
 
   return { css, body: parts.join("\n    ") };
@@ -335,19 +341,16 @@ function buildFireflies(ctx: SceneContext): SceneOutput {
     .map((c) => ({ c, k: rng() }))
     .sort((a, b) => a.k - b.k)
     .map((e) => e.c);
-  const picked = shuffled.slice(0, Math.min(70, shuffled.length));
+  const picked = shuffled.slice(0, Math.min(60, shuffled.length));
 
-  const levelCss = [0, 1, 2, 3, 4]
-    .map((l) => `.f${l}{--p:${num(l > 0 ? 0.5 + 0.12 * l : 0.4)}}`)
-    .join("");
   const css =
     `.ff{fill:${colors.firefly};fill-opacity:0;animation-name:ff;animation-timing-function:ease-in-out;animation-iteration-count:infinite}` +
     `@keyframes ff{0%,100%{fill-opacity:0}50%{fill-opacity:var(--p)}}` +
-    levelCss;
+    levelCss("f", (l) => (l > 0 ? 0.5 + 0.12 * l : 0.4));
 
   const parts: string[] = [];
   for (const { x, y, lvl } of picked) {
-    const dur = num(3.5 + rng() * 4);
+    const dur = num(3.5 + rng() * 4.5);
     const delay = num(rng() * parseFloat(dur));
     parts.push(
       `<rect class="c ff f${lvl}" x="${ctx.px(x)}" y="${ctx.py(y)}" style="animation-duration:${dur}s;animation-delay:-${delay}s"/>`
@@ -359,15 +362,20 @@ function buildFireflies(ctx: SceneContext): SceneOutput {
 
 // ============================================================
 // Scene: life — Conway's Game of Life (B3/S23, torus) seeded
-// from the contribution graph itself; the original graph is
-// re-injected whenever the population dies out or stagnates
+// from the contribution graph itself; cells fade in when born
+// and leave a brief afterglow when they die. The original graph
+// is re-injected whenever the population dies out or stagnates
 // ============================================================
 function buildLife(ctx: SceneContext): SceneOutput {
-  const { grid, palette, cycleSeconds, windowStart } = ctx;
+  const { grid, colors, cycleSeconds, windowStart } = ctx;
   const W = grid.width;
   const H = grid.height;
   const size = W * H;
   const stepSec = 0.6;
+  const riseSec = 0.22;
+  const ghostSec = 0.12;
+  const ghostOpacity = 0.3;
+  const fadeSec = 0.55;
   const showAt = windowStart + 0.5;
   const lastStepAt = windowStart + SCENE_SECONDS - 2.0;
 
@@ -404,17 +412,27 @@ function buildLife(ctx: SceneContext): SceneOutput {
     return next;
   };
 
-  // Per-cell flip events, encoded straight into values/keyTimes pairs.
-  // Every animated cell starts invisible at keyTime 0.
+  // Per-cell opacity keyframes: a birth ramps up over riseSec, a death drops
+  // to a ghost and then fades out. Every animated cell starts invisible.
   const values = new Map<number, string[]>();
   const keyTimes = new Map<number, string[]>();
-  const pushFlip = (idx: number, atSec: number, on: boolean) => {
+  const pushKey = (idx: number, atSec: number, value: string) => {
     if (!values.has(idx)) {
       values.set(idx, ["0"]);
       keyTimes.set(idx, ["0"]);
     }
-    values.get(idx)!.push(on ? "1" : "0");
+    values.get(idx)!.push(value);
     keyTimes.get(idx)!.push(frac(atSec, cycleSeconds));
+  };
+  const pushFlip = (idx: number, atSec: number, on: boolean) => {
+    if (on) {
+      pushKey(idx, atSec, "0");
+      pushKey(idx, atSec + riseSec, "1");
+    } else {
+      pushKey(idx, atSec, "1");
+      pushKey(idx, atSec + ghostSec, num(ghostOpacity));
+      pushKey(idx, atSec + fadeSec, "0");
+    }
   };
 
   let current = initial.slice();
@@ -448,13 +466,15 @@ function buildLife(ctx: SceneContext): SceneOutput {
     current = next;
   }
 
-  const aliveColor = palette.contributionColors[4];
   const parts: string[] = [];
   for (const [idx, vals] of values) {
     const x = Math.floor(idx / H);
     const y = idx % H;
+    // Linear calcMode needs the list to end at keyTime 1; hold the last state
+    const times = keyTimes.get(idx)!;
+    const held = [...vals, vals[vals.length - 1]];
     parts.push(
-      `<rect class="c" x="${ctx.px(x)}" y="${ctx.py(y)}" fill="${aliveColor}" fill-opacity="0"><animate attributeName="fill-opacity" values="${vals.join(";")}" keyTimes="${keyTimes.get(idx)!.join(";")}" dur="${cycleSeconds}s" repeatCount="indefinite" calcMode="discrete" /></rect>`
+      `<rect class="c" x="${ctx.px(x)}" y="${ctx.py(y)}" fill="${colors.life}" fill-opacity="0"><animate attributeName="fill-opacity" values="${held.join(";")}" keyTimes="${[...times, "1"].join(";")}" dur="${cycleSeconds}s" repeatCount="indefinite"/></rect>`
     );
   }
 
@@ -487,7 +507,7 @@ function buildFireworks(ctx: SceneContext): SceneOutput {
     .join("");
   const css =
     `.fw{fill-opacity:0;animation:fw ${period}s ease-out infinite;animation-delay:var(--d)}` +
-    `@keyframes fw{0%,100%{fill-opacity:0}1.5%{fill-opacity:var(--p)}8%{fill-opacity:var(--q)}24%{fill-opacity:0}}` +
+    `@keyframes fw{0%,100%{fill-opacity:0}1.5%{fill-opacity:var(--p)}8%{fill-opacity:var(--q)}26%{fill-opacity:0}}` +
     originCss;
 
   const parts: string[] = [];
@@ -517,8 +537,9 @@ function buildFireworks(ctx: SceneContext): SceneOutput {
 
 // ============================================================
 // Scene: equalizer — every column bounces like a spectrum
-// analyzer bar at its own pace, green at the bottom shading
-// to red at the top; contribution level sets the brightness
+// analyzer bar at its own pace, green at the bottom rising
+// through teal and sky to violet; contribution level sets the
+// brightness
 // ============================================================
 function buildEqualizer(ctx: SceneContext): SceneOutput {
   const { grid, colors, rng } = ctx;
@@ -540,15 +561,11 @@ function buildEqualizer(ctx: SceneContext): SceneOutput {
     );
   }
 
-  const levelCss = [0, 1, 2, 3, 4]
-    .map((l) => `.e${l}{--p:${num(l > 0 ? 0.5 + 0.12 * l : 0.42)}}`)
-    .join("");
-
   // Whole columns share duration + phase, so each bar moves as one
   const columnCss: string[] = [];
   const parts: string[] = [];
   for (let x = 0; x < grid.width; x++) {
-    const bounce = 1.5 + rng() * 1.3;
+    const bounce = 1.6 + rng() * 1.4;
     const phase = rng() * bounce;
     columnCss.push(
       `.u${x}{animation-duration:${num(bounce)}s;animation-delay:-${num(phase)}s}`
@@ -565,7 +582,7 @@ function buildEqualizer(ctx: SceneContext): SceneOutput {
   const css =
     `.eq{fill-opacity:0;animation-timing-function:linear;animation-iteration-count:infinite}` +
     rowCss.join("") +
-    levelCss +
+    levelCss("e", (l) => (l > 0 ? 0.5 + 0.12 * l : 0.42)) +
     columnCss.join("");
 
   return { css, body: parts.join("\n    ") };
@@ -643,7 +660,7 @@ interface SceneDef {
 const SCENES: SceneDef[] = [
   { name: "aurora", build: buildAurora, dim: 0 },
   { name: "ripple", build: buildRipple, dim: 0 },
-  { name: "pulse", build: buildPulse, dim: 0 },
+  { name: "tide", build: buildTide, dim: 0.35 },
   { name: "rain", build: buildRain, dim: 0.25 },
   { name: "fireflies", build: buildFireflies, dim: 0.35 },
   { name: "life", build: buildLife, dim: 0.55 },
@@ -653,42 +670,64 @@ const SCENES: SceneDef[] = [
 ];
 
 /**
- * Crossfade envelope for a scene group on the master cycle.
- * Scene i is visible during [i, i+1] * SCENE_SECONDS, fading in over the last
- * FADE_SECONDS of the previous window and out over its own last
- * FADE_SECONDS, so adjacent scenes crossfade instead of gap to black.
+ * Opacity envelope for a window [t0, t1] on the master cycle: 0 → 1 over
+ * `fadeIn`, 1 → 0 over `fadeOut`. The first window wraps around the cycle
+ * end and the last window ends exactly at it, so neighbours crossfade.
  */
-function sceneGroup(
-  inner: string,
-  index: number,
-  sceneCount: number,
-  name: string,
-  cycleSeconds: number
-): string {
-  const t0 = index * SCENE_SECONDS;
-  const t1 = t0 + SCENE_SECONDS;
-  const f = (s: number) => frac(s, cycleSeconds);
-
-  let valuesAttr: string;
-  let keyTimesAttr: string;
-  if (index === 0) {
-    // Fades back in at the very end of the cycle (wraps around)
-    valuesAttr = "1;1;0;0;1";
-    keyTimesAttr = `0;${f(t1 - FADE_SECONDS)};${f(t1)};${f(cycleSeconds - FADE_SECONDS)};1`;
-  } else if (index === sceneCount - 1) {
-    valuesAttr = "0;0;1;1;0";
-    keyTimesAttr = `0;${f(t0 - FADE_SECONDS)};${f(t0)};${f(t1 - FADE_SECONDS)};1`;
-  } else {
-    valuesAttr = "0;0;1;1;0;0";
-    keyTimesAttr = `0;${f(t0 - FADE_SECONDS)};${f(t0)};${f(t1 - FADE_SECONDS)};${f(t1)};1`;
+function windowPoints(
+  fadeIn: [number, number],
+  fadeOut: [number, number],
+  cycle: number
+): [number, number][] {
+  if (fadeIn[0] <= 0) {
+    return [[0, 1], [fadeOut[0], 1], [fadeOut[1], 0], [cycle + fadeIn[0], 0], [cycle, 1]];
   }
+  if (fadeOut[1] >= cycle) {
+    return [[0, 0], [fadeIn[0], 0], [fadeIn[1], 1], [Math.min(fadeOut[0], cycle), 1], [cycle, 0]];
+  }
+  return [[0, 0], [fadeIn[0], 0], [fadeIn[1], 1], [fadeOut[0], 1], [fadeOut[1], 0], [cycle, 0]];
+}
 
-  // First scene stays visible if SMIL is unsupported (static fallback)
-  const staticOpacity = index === 0 ? "1" : "0";
-  return `  <g data-scene="${name}" opacity="${staticOpacity}">
-    <animate attributeName="opacity" values="${valuesAttr}" keyTimes="${keyTimesAttr}" dur="${cycleSeconds}s" repeatCount="indefinite" />
-    ${inner}
-  </g>`;
+/** One eased SMIL opacity animation from a piecewise-linear envelope */
+function envelope(points: [number, number][], cycle: number): string {
+  const values = points.map((p) => num(p[1])).join(";");
+  const keyTimes = points.map((p) => frac(p[0], cycle)).join(";");
+  const splines = points
+    .slice(1)
+    .map((p, i) => (p[1] === points[i][1] ? "0 0 1 1" : ".45 0 .25 1"))
+    .join(";");
+  return `<animate attributeName="opacity" values="${values}" keyTimes="${keyTimes}" keySplines="${splines}" calcMode="spline" dur="${cycle}s" repeatCount="indefinite"/>`;
+}
+
+/** Month labels above the columns where a new month begins */
+function monthLabels(
+  grid: Grid,
+  cellX: (x: number) => number,
+  y: number
+): string {
+  const starts = grid.weekStarts;
+  if (!starts || starts.length !== grid.width) return "";
+  const marks: { x: number; label: string }[] = [];
+  let previous = -1;
+  for (let x = 0; x < grid.width; x++) {
+    const month = Number(starts[x]?.slice(5, 7));
+    if (!MONTHS[month - 1]) continue;
+    if (month !== previous) {
+      marks.push({ x, label: MONTHS[month - 1] });
+      previous = month;
+    }
+  }
+  return marks
+    .filter((m, i) => {
+      const next = marks[i + 1];
+      return (!next || next.x - m.x >= 3) && grid.width - m.x >= 3;
+    })
+    .map((m) => `<text class="month" x="${cellX(m.x)}" y="${y}">${m.label}</text>`)
+    .join("");
+}
+
+function sceneTitle(name: string): string {
+  return name.charAt(0).toUpperCase() + name.slice(1);
 }
 
 /**
@@ -703,7 +742,7 @@ export function renderAmbientSVG(
   seed: number = 0
 ): string {
   const { cellSize, cellGap, cellRadius } = config;
-  const theme = galleryTheme(config.darkMode);
+  const theme: GalleryTheme = galleryTheme(config.darkMode);
   // Keep the caller's contribution colors, while dimming scenes against the card surface.
   const palette = { ...config.palette, background: theme.background };
   const step = cellSize + cellGap;
@@ -712,10 +751,15 @@ export function renderAmbientSVG(
   const graphWidth = svgWidth - MARGIN * 2;
   const graphHeight = svgHeight - MARGIN * 2;
   const scale = (svgWidth - 48) / graphWidth;
-  const graphY = 88;
+  const months = monthLabels(grid, (x) => Math.round((24 + x * step * scale) * 10) / 10, 86);
+  const graphY = months ? 99 : 88;
   const cardHeight = Math.ceil(graphY + graphHeight * scale + 43);
+  const footerY = cardHeight - 19;
   const colors = config.darkMode ? DARK_SCENE_COLORS : LIGHT_SCENE_COLORS;
   const cycleSeconds = SCENES.length * SCENE_SECONDS;
+  const spectrum = config.darkMode ? ["#5eead4", "#7dd3fc", "#c4b5fd"] : ["#0d9488", "#2563eb", "#7c3aed"];
+  // Light glows read as haze on a white card, so the bloom is tighter and fainter there
+  const bloom = config.darkMode ? { blur: 4, alpha: 1.5, opacity: 0.7 } : { blur: 3, alpha: 1.2, opacity: 0.4 };
 
   // Fisher-Yates shuffle of the full scene order, on its own PRNG stream so
   // the scene-detail randomness below stays independent of the ordering.
@@ -730,21 +774,40 @@ export function renderAmbientSVG(
   const px = (x: number) => MARGIN + x * step;
   const py = (y: number) => MARGIN + y * step;
 
-  // Static base: the real contribution graph, always visible underneath
+  // Static base: the real contribution graph, always visible underneath.
+  // Columns reveal left to right once on load, then stay put.
   const baseRects: string[] = [];
   for (let x = 0; x < grid.width; x++) {
     for (let y = 0; y < grid.height; y++) {
       const lvl = grid.cells[x][y].contributionLevel;
       baseRects.push(
-        `<rect class="c" x="${px(x)}" y="${py(y)}" fill="${palette.contributionColors[lvl]}"/>`
+        `<rect class="c b i${x}" x="${px(x)}" y="${py(y)}" fill="${palette.contributionColors[lvl]}"/>`
       );
     }
   }
+  const introCss = Array.from({ length: grid.width }, (_, x) => `.i${x}{animation-delay:${num(x * 0.02)}s}`).join("");
 
   const cssBlocks: string[] = [
     galleryCss(theme),
-    `.c{width:${cellSize}px;height:${cellSize}px;rx:${cellRadius}px}`,
+    `.c{width:${cellSize}px;height:${cellSize}px;rx:${cellRadius}px}` +
+      `.b{animation:reveal .9s cubic-bezier(.2,.6,.2,1) both}` +
+      `.ambient-scenes{animation:reveal 1.8s ease-out .5s both}` +
+      `@keyframes reveal{from{opacity:0}}` +
+      `.month{font-size:9.5px;letter-spacing:.3px;fill:${theme.muted};opacity:.9}` +
+      `.scene-name{fill:${theme.muted}}` +
+      introCss,
   ];
+
+  const windows = ordered.map((_, i) => {
+    const t0 = i * SCENE_SECONDS;
+    const t1 = t0 + SCENE_SECONDS;
+    return {
+      scene: envelope(windowPoints([t0 - FADE_SECONDS, t0], [t1 - FADE_SECONDS, t1], cycleSeconds), cycleSeconds),
+      label: envelope(windowPoints([t0 - LABEL_FADE, t0 + LABEL_FADE], [t1 - LABEL_FADE, t1 + LABEL_FADE], cycleSeconds), cycleSeconds),
+    };
+  });
+
+  const veils: string[] = [];
   const groups = ordered.map((scene, i) => {
     const ctx: SceneContext = {
       grid,
@@ -756,49 +819,71 @@ export function renderAmbientSVG(
       py,
       cycleSeconds,
       windowStart: i * SCENE_SECONDS,
-      svgWidth,
-      svgHeight,
     };
     const { css, body } = scene.build(ctx);
     if (css) cssBlocks.push(css);
-    const inner = [dimVeil(ctx, scene.dim), body].filter(Boolean).join("\n    ");
-    return sceneGroup(inner, i, ordered.length, scene.name, cycleSeconds);
+    if (scene.dim > 0) {
+      veils.push(
+        `<rect x="0" y="0" width="${svgWidth}" height="${svgHeight}" fill="${palette.background}" fill-opacity="${num(scene.dim)}" opacity="${i === 0 ? 1 : 0}">${windows[i].scene}</rect>`
+      );
+    }
+    // First scene stays visible if SMIL is unsupported (static fallback)
+    return `  <g data-scene="${scene.name}" opacity="${i === 0 ? 1 : 0}">
+    ${windows[i].scene}
+    ${body}
+  </g>`;
   });
 
-  // Artwork crossfades; its caption switches cleanly so two names never overlap.
-  const sceneLabels = ordered.map((scene, i) => {
-    const start = frac(i * SCENE_SECONDS, cycleSeconds);
-    const end = frac((i + 1) * SCENE_SECONDS, cycleSeconds);
-    const values = i === 0 ? "1;0;0" : i === ordered.length - 1 ? "0;1;1" : "0;1;0;0";
-    const times = i === 0 ? `0;${end};1` : i === ordered.length - 1 ? `0;${start};1` : `0;${start};${end};1`;
-    return `<g opacity="${i === 0 ? 1 : 0}">
-      <animate attributeName="opacity" values="${values}" keyTimes="${times}" dur="${cycleSeconds}s" repeatCount="indefinite" calcMode="discrete"/>
-      <text class="detail" x="${svgWidth - 24}" y="${cardHeight - 19}" text-anchor="end">${String(i + 1).padStart(2, "0")} / 09 · ${scene.name.charAt(0).toUpperCase() + scene.name.slice(1)}</text>
-    </g>`;
-  }).join("\n");
+  // Caption: a pixel pager plus the scene name, both fading with the scene
+  const dotPitch = 6.5;
+  const dotY = footerY - 6.5;
+  const nameX = svgWidth - 24;
+  const dotsEnd = nameX - 60 - 12;
+  const dotX = (i: number) => dotsEnd - (ordered.length - 1 - i) * dotPitch;
+  const pager = ordered
+    .map((_, i) => `<rect x="${num(dotX(i))}" y="${dotY}" width="3.5" height="3.5" rx=".9" fill="${theme.muted}" opacity=".28"/>`)
+    .join("");
+  const captions = ordered
+    .map((scene, i) => `<g opacity="${i === 0 ? 1 : 0}">
+      ${windows[i].label}
+      <rect x="${num(dotX(i))}" y="${dotY}" width="3.5" height="3.5" rx=".9" fill="${theme.accent}"/>
+      <text class="detail scene-name" x="${nameX}" y="${footerY}" text-anchor="end">${sceneTitle(scene.name)}</text>
+    </g>`)
+    .join("\n");
   cssBlocks.push(`.still-label{display:none}@media(prefers-reduced-motion:reduce){.ambient-scenes,.scene-labels{display:none}.still-label{display:inline}.c{animation:none!important}}`);
 
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${svgWidth} ${cardHeight}" width="${svgWidth}" height="${cardHeight}" role="img" aria-labelledby="title description" data-design="gallery-v2">
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${svgWidth} ${cardHeight}" width="${svgWidth}" height="${cardHeight}" role="img" aria-labelledby="title description" data-design="gallery-v3">
   <title id="title">A year, in motion — contribution gallery</title>
   <desc id="description">Contribution graph ambient animation — ${ordered.map((s) => s.name).join(" → ")}, one scene every ${SCENE_SECONDS} seconds. Reduced motion shows the original contribution graph.</desc>
   <!-- generated by contribution-gallery ambient renderer (seed ${seed}) -->
   <style>${cssBlocks.join("\n")}</style>
   ${cardSurface(svgWidth, cardHeight, theme)}
   <defs>
-    <linearGradient id="spectrum"><stop stop-color="${config.darkMode ? '#56e0bd' : '#16765f'}"/><stop offset=".5" stop-color="${config.darkMode ? '#7dbbff' : '#2563eb'}"/><stop offset="1" stop-color="${config.darkMode ? '#d2a2ff' : '#9333ea'}"/></linearGradient>
-    <radialGradient id="atmosphere" cx="80%" cy="0%" r="90%"><stop stop-color="${config.darkMode ? '#5865bc' : '#9db7ff'}" stop-opacity=".16"/><stop offset="1" stop-color="${theme.background}" stop-opacity="0"/></radialGradient>
+    <linearGradient id="spectrum"><stop stop-color="${spectrum[0]}"/><stop offset=".5" stop-color="${spectrum[1]}"/><stop offset="1" stop-color="${spectrum[2]}"/></linearGradient>
+    <radialGradient id="atmosphere" cx="80%" cy="0%" r="90%"><stop stop-color="${config.darkMode ? '#5865bc' : '#9db7ff'}" stop-opacity=".16"/><stop offset="1" stop-color="${theme.background}" stop-opacity="0"/>
+      <animate attributeName="cx" values="80%;58%;80%" keyTimes="0;.5;1" keySplines=".45 0 .55 1;.45 0 .55 1" calcMode="spline" dur="46s" repeatCount="indefinite"/>
+    </radialGradient>
+    <filter id="bloom" x="-2%" y="-12%" width="104%" height="124%" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="${bloom.blur}"/>
+      <feComponentTransfer><feFuncA type="linear" slope="${bloom.alpha}"/></feComponentTransfer>
+    </filter>
   </defs>
   <rect x="1" y="1" width="${svgWidth - 2}" height="${cardHeight - 2}" rx="14" fill="url(#atmosphere)"/>
   <text class="eyebrow" x="24" y="29">CONTRIBUTION GALLERY</text>
   <text class="heading" x="23" y="60" style="font-size:27px;letter-spacing:-.8px;fill:url(#spectrum)">A year, in motion.</text>
-  ${pixelMark(svgWidth - 49, 30, theme)}
+  <g class="motion">${pixelMark(svgWidth - 49, 30, theme)}</g>
+  ${months}
   <g transform="translate(${24 - MARGIN * scale},${graphY - MARGIN * scale}) scale(${scale})">
     <g>${baseRects.join("\n    ")}</g>
-    <g class="ambient-scenes">${groups.join("\n")}</g>
+    <g class="ambient-scenes">
+    <g class="veils">${veils.join("\n    ")}</g>
+    <use href="#scenes" filter="url(#bloom)" opacity="${num(bloom.opacity)}"/>
+    <g id="scenes">${groups.join("\n")}</g>
+    </g>
   </g>
-  <text class="detail" x="24" y="${cardHeight - 19}">${grid.width} weeks · A little, every day.</text>
-  <g class="scene-labels">${sceneLabels}</g>
-  <text class="detail still-label" x="${svgWidth - 24}" y="${cardHeight - 19}" text-anchor="end">Contribution history</text>
+  <text class="detail" x="24" y="${footerY}">${grid.width} weeks · A little, every day.</text>
+  <g class="scene-labels">${pager}${captions}</g>
+  <text class="detail still-label" x="${svgWidth - 24}" y="${footerY}" text-anchor="end">Contribution history</text>
 </svg>
 `;
 }

@@ -24,15 +24,15 @@ Nine colorful, cell-based animation scenes rotate every 15 seconds on one seamle
 |-------|-------------|
 | 🌌 Aurora | A teal→blue→violet color field drifts across the whole graph |
 | 💧 Ripple | Waves radiate from your most active cells |
-| 💓 Pulse | The graph breathes; amplitude follows contribution level |
+| 🌊 Tide | One long swell rolls across the year, deep teal at the floor and pale foam at each crest |
 | 🌧️ Rain | Light drops fall down each column at its own pace |
 | ✨ Fireflies | Cells glow in and out like fireflies over the graph |
-| 🦠 Life | Conway's Game of Life seeded from your actual contributions |
+| 🦠 Life | Conway's Game of Life seeded from your actual contributions; cells fade in and leave an afterglow |
 | 🎆 Fireworks | Colorful shells burst one after another across the graph |
-| 🎚️ Equalizer | Columns bounce like a spectrum analyzer, green fading to red |
+| 🎚️ Equalizer | Columns bounce like a spectrum analyzer, green rising through teal and sky to violet |
 | ☄️ Comet | Two comets streak past in opposite directions, trailing glow |
 
-Every cell takes part — zero-contribution days shimmer, pulse and glow at a softer intensity, so the whole canvas stays alive. The scene order is fully shuffled on every render, and so are the random details — ripple origins, rain speeds, firefly picks, burst positions, comet paths. All scenes except Life are compact CSS keyframe loops (each cell only carries a phase offset), so the whole file stays around ~230 KB, well under half of the splatoon animation.
+One palette ties the scenes together — the same teal → sky → violet spectrum as the heading, plus a single warm amber — and a blurred copy of the scene layer gives every lit cell a soft bloom at no extra file size. Month labels frame the year, the graph reveals itself column by column on load, scenes crossfade with eased envelopes, and a pixel pager tracks which scene is playing. Every cell takes part — zero-contribution days shimmer, roll and glow at a softer intensity, so the whole canvas stays alive. The scene order is fully shuffled on every render, and so are the random details — ripple origins, rain speeds, firefly picks, burst positions, comet paths. All scenes except Life are compact CSS keyframe loops (each cell only carries a phase offset), so the whole file stays around ~250 KB, well under half of the splatoon animation.
 
 Enable it with `?mode=ambient` in the action outputs:
 

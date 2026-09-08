@@ -138,7 +138,7 @@ function daysToGrid(days: CalendarDay[]): Grid {
     }
   }
 
-  return { cells, width, height };
+  return { cells, width, height, weekStarts: weeks.map((w) => w[0].date) };
 }
 
 /**
@@ -164,7 +164,12 @@ function weeksToGrid(weeks: ContributionWeek[]): Grid {
     }
   }
 
-  return { cells, width, height };
+  return {
+    cells,
+    width,
+    height,
+    weekStarts: weeks.map((w) => w.contributionDays[0]?.date ?? ""),
+  };
 }
 
 /**
@@ -185,5 +190,11 @@ export function createMockGrid(width: number = 52, height: number = 7): Grid {
     }
   }
 
-  return { cells, width, height };
+  const today = new Date();
+  const lastSunday = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate() - today.getUTCDay()));
+  const weekStarts = Array.from({ length: width }, (_, x) =>
+    new Date(lastSunday.getTime() - (width - 1 - x) * 7 * 86_400_000).toISOString().slice(0, 10)
+  );
+
+  return { cells, width, height, weekStarts };
 }

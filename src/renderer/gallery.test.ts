@@ -68,8 +68,25 @@ test("ambient preserves all nine scenes and the original grid as its reduced-mot
   expect(svg).toBe(renderAmbientSVG(grid, config, 42));
   expect(svg).not.toBe(renderAmbientSVG(grid, config, 43));
   expect(new Set([...svg.matchAll(/data-scene="([^"]+)"/g)].map(m => m[1])).size).toBe(9);
-  expect(svg.match(/class="c" /g)).toHaveLength(371);
+  expect(svg).toContain('data-scene="tide"');
+  // The real graph stays underneath every scene, and is all that remains without motion
+  expect(svg.match(/class="c b i\d+" /g)).toHaveLength(371);
   expect(svg).toContain('.ambient-scenes,.scene-labels{display:none}');
+  expect(svg).toContain('<use href="#scenes" filter="url(#bloom)"');
   expect(svg).toContain('width="753"');
+  expect(svg).not.toContain('class="month"');
   expect(svg).not.toMatch(/NaN|Infinity/);
+});
+
+test("ambient labels the months when the grid carries week dates", () => {
+  const weekStarts = Array.from({ length: 53 }, (_, x) =>
+    new Date(Date.UTC(2025, 8, 7) + x * 7 * 86_400_000).toISOString().slice(0, 10));
+  const grid: Grid = { width: 53, height: 7, weekStarts, cells: Array.from({ length: 53 }, (_, x) =>
+    Array.from({ length: 7 }, (_, y) => ({ x, y, contributionLevel: (x % 5) as 0 | 1 | 2 | 3 | 4, owner: CellOwner.None }))) };
+  const svg = renderAmbientSVG(grid, DEFAULT_RENDER_CONFIG, 7);
+  const months = [...svg.matchAll(/class="month" x="[\d.]+" y="\d+">(\w+)</g)].map(m => m[1]);
+  expect(months).toEqual(["Sep", "Oct", "Nov", "Dec", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug"]);
+  // Life cells ramp between states instead of flipping, with a linear key list ending at 1
+  expect(svg).toMatch(/values="0;0;1;[^"]*" keyTimes="0;0\.\d+;0\.\d+;[^"]*;1" dur="135s"/);
+  expect(svg).not.toMatch(/NaN|Infinity|undefined/);
 });

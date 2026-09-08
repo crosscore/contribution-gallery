@@ -40,6 +40,11 @@ export interface Grid {
   width: number;
   /** Number of rows (always 7) */
   height: number;
+  /**
+   * ISO date (YYYY-MM-DD) of each column's first day, when known. Lets the
+   * ambient renderer place month labels; older grid snapshots omit it.
+   */
+  weekStarts?: string[];
 }
 
 /** Position on the grid */
