@@ -70,7 +70,10 @@ test("ambient preserves all nine scenes and the original grid as its reduced-mot
   expect(new Set([...svg.matchAll(/data-scene="([^"]+)"/g)].map(m => m[1])).size).toBe(9);
   expect(svg).toContain('data-scene="tide"');
   // The real graph stays underneath every scene, and is all that remains without motion
-  expect(svg.match(/class="c b i\d+" /g)).toHaveLength(371);
+  expect(svg.match(/class="c b" /g)).toHaveLength(371);
+  // Reveals are SMIL with a visible base state, so still renders keep the graph
+  expect(svg).not.toMatch(/from\{opacity:0\}|opacity="0">\s*<rect class="c b"/);
+  expect(svg.match(/values="0;0;1" keyTimes="0;0\.\d+;1"[^>]*fill="freeze"/g)?.length).toBeGreaterThanOrEqual(53);
   expect(svg).toContain('.ambient-scenes,.scene-labels{display:none}');
   expect(svg).toContain('<use href="#scenes" filter="url(#bloom)"');
   expect(svg).toContain('width="753"');

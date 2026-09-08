@@ -726,6 +726,19 @@ function monthLabels(
     .join("");
 }
 
+/**
+ * One-shot fade-in: holds at 0 for `delay`, then rises to 1 and freezes.
+ * The target keeps opacity 1 as its base value, so a still render or a
+ * viewer without SMIL shows it in full.
+ */
+function reveal(delay: number, rise: number): string {
+  const dur = delay + rise;
+  const values = delay > 0 ? "0;0;1" : "0;1";
+  const keyTimes = delay > 0 ? `0;${(delay / dur).toFixed(4)};1` : "0;1";
+  const splines = delay > 0 ? "0 0 1 1;.2 .6 .2 1" : ".2 .6 .2 1";
+  return `<animate attributeName="opacity" values="${values}" keyTimes="${keyTimes}" keySplines="${splines}" calcMode="spline" dur="${num(dur)}s" fill="freeze"/>`;
+}
+
 function sceneTitle(name: string): string {
   return name.charAt(0).toUpperCase() + name.slice(1);
 }
@@ -775,27 +788,23 @@ export function renderAmbientSVG(
   const py = (y: number) => MARGIN + y * step;
 
   // Static base: the real contribution graph, always visible underneath.
-  // Columns reveal left to right once on load, then stay put.
-  const baseRects: string[] = [];
+  // Columns reveal left to right once on load via SMIL, so renderers that
+  // draw a still frame (no SMIL, no CSS animation) still show every cell.
+  const columns: string[] = [];
   for (let x = 0; x < grid.width; x++) {
+    const rects: string[] = [];
     for (let y = 0; y < grid.height; y++) {
       const lvl = grid.cells[x][y].contributionLevel;
-      baseRects.push(
-        `<rect class="c b i${x}" x="${px(x)}" y="${py(y)}" fill="${palette.contributionColors[lvl]}"/>`
-      );
+      rects.push(`<rect class="c b" x="${px(x)}" y="${py(y)}" fill="${palette.contributionColors[lvl]}"/>`);
     }
+    columns.push(`<g>${reveal(x * 0.02, 0.8)}${rects.join("")}</g>`);
   }
-  const introCss = Array.from({ length: grid.width }, (_, x) => `.i${x}{animation-delay:${num(x * 0.02)}s}`).join("");
 
   const cssBlocks: string[] = [
     galleryCss(theme),
     `.c{width:${cellSize}px;height:${cellSize}px;rx:${cellRadius}px}` +
-      `.b{animation:reveal .9s cubic-bezier(.2,.6,.2,1) both}` +
-      `.ambient-scenes{animation:reveal 1.8s ease-out .5s both}` +
-      `@keyframes reveal{from{opacity:0}}` +
       `.month{font-size:9.5px;letter-spacing:.3px;fill:${theme.muted};opacity:.9}` +
-      `.scene-name{fill:${theme.muted}}` +
-      introCss,
+      `.scene-name{fill:${theme.muted}}`,
   ];
 
   const windows = ordered.map((_, i) => {
@@ -824,7 +833,7 @@ export function renderAmbientSVG(
     if (css) cssBlocks.push(css);
     if (scene.dim > 0) {
       veils.push(
-        `<rect x="0" y="0" width="${svgWidth}" height="${svgHeight}" fill="${palette.background}" fill-opacity="${num(scene.dim)}" opacity="${i === 0 ? 1 : 0}">${windows[i].scene}</rect>`
+        `<rect x="0" y="0" width="${svgWidth}" height="${svgHeight}" fill="${palette.background}" fill-opacity="${num(scene.dim)}" opacity="0">${windows[i].scene}</rect>`
       );
     }
     // First scene stays visible if SMIL is unsupported (static fallback)
@@ -874,8 +883,8 @@ export function renderAmbientSVG(
   <g class="motion">${pixelMark(svgWidth - 49, 30, theme)}</g>
   ${months}
   <g transform="translate(${24 - MARGIN * scale},${graphY - MARGIN * scale}) scale(${scale})">
-    <g>${baseRects.join("\n    ")}</g>
-    <g class="ambient-scenes">
+    <g>${columns.join("\n    ")}</g>
+    <g class="ambient-scenes">${reveal(0.5, 1.8)}
     <g class="veils">${veils.join("\n    ")}</g>
     <use href="#scenes" filter="url(#bloom)" opacity="${num(bloom.opacity)}"/>
     <g id="scenes">${groups.join("\n")}</g>
