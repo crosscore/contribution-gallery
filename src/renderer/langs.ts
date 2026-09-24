@@ -22,7 +22,7 @@ export function renderLangsSVG(stats: UserStats, dark: boolean, font: NumeralFon
   const shown = [...languages].sort((a, b) => b.size - a.size).slice(0, 8);
   const max = shown[0]?.size ?? 1;
   const rows = shown.map((lang, i) => {
-    const y = 83 + i * 21;
+    const y = 82 + i * 20;
     const name = lang.name.length > 18 ? `${lang.name.slice(0, 17)}…` : lang.name;
     const color = visibleColor(lang.color, dark, theme.muted);
     const filled = Math.max(1, Math.round(lang.size / max * 26));
@@ -42,5 +42,5 @@ export function renderLangsSVG(stats: UserStats, dark: boolean, font: NumeralFon
     <text class="heading" x="24" y="54">Top Languages</text>
     ${shown.slice(0, 4).map((lang, i) => `<rect x="${334 + (i % 2) * 9}" y="${28 + Math.floor(i / 2) * 9}" width="6" height="6" rx="1.5" fill="${visibleColor(lang.color, dark, theme.muted)}"/>`).join("")}
     ${rows || `<text class="label" x="24" y="123">No language data yet.</text>`}
-    <text class="detail" x="24" y="247">Relative bars · % of indexed code</text>`, `.language-cell{animation:language-wave 4.8s ease-in-out infinite}@keyframes language-wave{0%,60%,100%{opacity:.78}80%{opacity:1}}@media(prefers-reduced-motion:reduce){.language-cell{animation:none}}`, font);
+    <text class="detail" x="24" y="243">Relative bars · % of indexed code</text>`, `.language-cell{animation:language-wave 4.8s ease-in-out infinite}@keyframes language-wave{0%,60%,100%{opacity:.78}80%{opacity:1}}@media(prefers-reduced-motion:reduce){.language-cell{animation:none}}`, font);
 }

@@ -7,7 +7,7 @@
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/ambient-dark.svg" />
   <source media="(prefers-color-scheme: light)" srcset="docs/ambient.svg" />
-  <img src="docs/ambient-dark.svg" alt="Nine colorful animations across a GitHub contribution graph" width="753" />
+  <img src="docs/ambient-dark.svg" alt="Nine animated scenes playing across a GitHub contribution graph" width="753" />
 </picture>
 
 Nine ambient scenes. Colorful pixel cards. Your work, in motion.
@@ -18,21 +18,23 @@ Nine ambient scenes. Colorful pixel cards. Your work, in motion.
 
 ## Ambient gallery
 
-Nine colorful, cell-based animation scenes rotate every 15 seconds on one seamless loop — no reset, no pause.
+Nine scenes play across your contribution graph, one every 15 seconds on a single seamless 135-second loop — no reset, no pause. Some are ambient loops; others are little stories that play out from start to finish inside their window.
 
 | Scene | Description |
 |-------|-------------|
-| 🌌 Aurora | A teal→blue→violet color field drifts across the whole graph |
-| 💧 Ripple | Waves radiate from your most active cells |
+| 🌈 Plasma | Demoscene palette cycling — bands of color roll along a sum-of-sines field |
+| ✨ Constellation | Your busiest days become stars, joined one by one into a star chart |
 | 🌊 Tide | One long swell rolls across the year, deep teal at the floor and pale foam at each crest |
-| 🌧️ Rain | Light drops fall down each column at its own pace |
-| ✨ Fireflies | Cells glow in and out like fireflies over the graph |
-| 🦠 Life | Conway's Game of Life seeded from your actual contributions; cells fade in and leave an afterglow |
-| 🎆 Fireworks | Colorful shells burst one after another across the graph |
-| 🎚️ Equalizer | Columns bounce like a spectrum analyzer, green rising through teal and sky to violet |
-| ☄️ Comet | Two comets streak past in opposite directions, trailing glow |
+| 🟩 Code Rain | Green glyph streams fall down every week, each at its own pace |
+| 🧭 Pathfinder | A breadth-first search floods a maze from the first day to the latest, then traces the route |
+| 🦠 Life | Conway's Game of Life, seeded by the days you showed up |
+| 📊 Sort | Weeks ranked by activity become bars, sorted in parallel passes into a staircase |
+| 🏓 Pong | The year plays itself at Pong — spin off the paddles, a pixel scoreboard, the odd missed return |
+| 💓 Heartbeat | A steady pulse traced week by week, like a bedside monitor |
 
-One palette ties the scenes together — the same teal → sky → violet spectrum as the heading, plus a single warm amber — and a blurred copy of the scene layer gives every lit cell a soft bloom at no extra file size. Month labels frame the year, the graph reveals itself column by column on load, scenes crossfade with eased envelopes, and a pixel pager tracks which scene is playing. Every cell takes part — zero-contribution days shimmer, roll and glow at a softer intensity, so the whole canvas stays alive. The scene order is fully shuffled on every render, and so are the random details — ripple origins, rain speeds, firefly picks, burst positions, comet paths. All scenes except Life are compact CSS keyframe loops (each cell only carries a phase offset), so the whole file stays around ~250 KB, well under half of the splatoon animation.
+Every scene draws from one spectrum — mint, sky, indigo, violet, pink and a single warm amber — tuned separately for light and dark cards, and a blurred copy of the scene layer gives every lit cell a soft bloom at no extra file size. The real graph always stays underneath: each scene dims it with its own veil rather than replacing it, so your year remains readable through every animation. The header shows the date range and your active days, the graph reveals itself column by column on load, scenes crossfade with eased envelopes, and a gallery placard plus a segmented progress bar name the scene that is playing.
+
+Story scenes (Pathfinder, Sort, Pong, Constellation, Life) are scripted in SMIL on the shared cycle and rest at their first frame outside their window, so every crossfade starts cleanly. Continuous scenes are compact CSS keyframe loops where each cell only carries a phase offset. The scene order is shuffled on every render, and so are the details — the maze, the rally, the star picks, the plasma field — while the file stays around 260–290 KB.
 
 Enable it with `?mode=ambient` in the action outputs:
 
@@ -74,7 +76,7 @@ Four endpoints share a dark-first visual system: fine borders, consistent spacin
 | `/api/streak` | All-time contributions, current and longest streaks, and a glowing pixel flame |
 | `/api/trophy` | Seven ranked pixel trophies with glints and S-tier sparkles |
 
-Use `?theme=dark` for the dark palette; the default API palette remains light for existing embeds. The ambient, streak, and trophy cards are 753px wide. The stats and languages cards are 375 × 256px; embed each at `width="369"` to fit them side by side with a small gap, and let them wrap on narrow screens. All images have self-contained SVG/CSS animations, accessible descriptions, and reduced-motion fallbacks. The nine ambient scenes keep their original colors and shuffled order.
+Use `?theme=dark` for the dark palette; the default API palette remains light for existing embeds. The ambient, streak, and trophy cards are 753px wide. The stats and languages cards are 375 × 256px; embed each at `width="369"` to fit them side by side with a small gap, and let them wrap on narrow screens. All images have self-contained SVG/CSS animations, accessible descriptions, and reduced-motion fallbacks. The nine ambient scenes play in a freshly shuffled order on every render.
 
 Numbers come from [docs/stats.json](docs/stats.json), refreshed by CI every six hours. Language percentages describe the indexed language bytes in that snapshot; bars are linear relative to the largest language. No GitHub token is needed at request time.
 
@@ -182,7 +184,8 @@ src/
 ├── renderer/         # SVG animation generator
 │   ├── grid.ts       # Contribution grid rendering
 │   ├── animation.ts  # Keyframe animation engine (splatoon battle)
-│   ├── ambient.ts    # Ambient mode — nine scenes rotating every 15s
+│   ├── ambient.ts    # Ambient mode — assembles the nine scenes on one loop
+│   ├── scenes/       # One file per scene, plus the shared timeline kit
 │   ├── theme.ts      # Shared surfaces, typography and accessible SVG framing
 │   ├── stats.ts      # Stats card — pixel icons + gradient numbers
 │   ├── langs.ts      # Top languages card — cell bars in language colors
