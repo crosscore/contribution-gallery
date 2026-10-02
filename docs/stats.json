@@ -1,22 +1,22 @@
 {
   "login": "crosscore",
-  "generatedAt": "2026-10-01T22:40:07.761Z",
-  "totalContributions": 34431,
+  "generatedAt": "2026-10-02T05:34:31.741Z",
+  "totalContributions": 34485,
   "firstContribution": "2019-05-03",
   "currentStreak": {
-    "days": 310,
+    "days": 311,
     "start": "2025-11-26",
-    "end": "2026-10-01"
+    "end": "2026-10-02"
   },
   "longestStreak": {
-    "days": 310,
+    "days": 311,
     "start": "2025-11-26",
-    "end": "2026-10-01"
+    "end": "2026-10-02"
   },
-  "commits": 33303,
+  "commits": 33359,
   "followers": 5,
   "stars": 1,
-  "repos": 96,
+  "repos": 94,
   "pullRequests": 1024,
   "issues": 546,
   "reviews": 543,
@@ -24,17 +24,12 @@
     {
       "name": "C++",
       "color": "#f34b7d",
-      "size": 21886080
+      "size": 12124126
     },
     {
       "name": "C",
       "color": "#555555",
-      "size": 6302230
-    },
-    {
-      "name": "Python",
-      "color": "#3572A5",
-      "size": 3472585
+      "size": 4794595
     },
     {
       "name": "Jupyter Notebook",
@@ -42,29 +37,34 @@
       "size": 3444318
     },
     {
+      "name": "Python",
+      "color": "#3572A5",
+      "size": 2759571
+    },
+    {
       "name": "Cuda",
       "color": "#3A4E3A",
-      "size": 1821298
+      "size": 1371045
     },
     {
       "name": "Shell",
       "color": "#89e051",
-      "size": 1110819
-    },
-    {
-      "name": "Metal",
-      "color": "#8f14e9",
-      "size": 709695
-    },
-    {
-      "name": "Objective-C",
-      "color": "#438eff",
-      "size": 634043
+      "size": 1002179
     },
     {
       "name": "C#",
       "color": "#7355dd",
       "size": 580045
+    },
+    {
+      "name": "Metal",
+      "color": "#8f14e9",
+      "size": 481108
+    },
+    {
+      "name": "Objective-C",
+      "color": "#438eff",
+      "size": 461394
     },
     {
       "name": "HTML",
