@@ -2,14 +2,15 @@ import { Scene } from "./kit";
 import { plasma } from "./plasma";
 import { constellation } from "./constellation";
 import { tide } from "./tide";
-import { codeRain } from "./code-rain";
+import { aurora } from "./aurora";
 import { pathfinder } from "./pathfinder";
 import { life } from "./life";
 import { sort } from "./sort";
 import { pong } from "./pong";
-import { heartbeat } from "./heartbeat";
+import { fireworks } from "./fireworks";
+import { ripples } from "./ripples";
 
-/** The gallery's nine scenes; the render seed shuffles their order. */
-export const SCENES: Scene[] = [plasma, constellation, tide, codeRain, pathfinder, life, sort, pong, heartbeat];
+/** The gallery's ten scenes; the render seed shuffles their order. */
+export const SCENES: Scene[] = [plasma, constellation, tide, aurora, pathfinder, life, sort, pong, fireworks, ripples];
 
 export * from "./kit";

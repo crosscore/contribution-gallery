@@ -7,10 +7,10 @@
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/ambient-dark.svg" />
   <source media="(prefers-color-scheme: light)" srcset="docs/ambient.svg" />
-  <img src="docs/ambient-dark.svg" alt="Nine animated scenes playing across a GitHub contribution graph" width="753" />
+  <img src="docs/ambient-dark.svg" alt="Ten animated scenes playing across a GitHub contribution graph" width="753" />
 </picture>
 
-Nine ambient scenes. Colorful pixel cards. Your work, in motion.
+Ten ambient scenes. Colorful pixel cards. Your work, in motion.
 
 [![MIT License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
@@ -18,23 +18,24 @@ Nine ambient scenes. Colorful pixel cards. Your work, in motion.
 
 ## Ambient gallery
 
-Nine scenes play across your contribution graph, one every 15 seconds on a single seamless 135-second loop — no reset, no pause. Some are ambient loops; others are little stories that play out from start to finish inside their window.
+Ten scenes play across your contribution graph, one every 15 seconds on a single seamless 150-second loop — no reset, no pause. Some are ambient loops; others are little stories that play out from start to finish inside their window.
 
 | Scene | Description |
 |-------|-------------|
 | 🌈 Plasma | Demoscene palette cycling — bands of color roll along a sum-of-sines field |
-| ✨ Constellation | Your busiest days become stars, joined one by one into a star chart |
+| ✨ Constellation | Your busiest days become stars, joined one by one into a star chart, then a meteor or two streaks past |
 | 🌊 Tide | One long swell rolls across the year, deep teal at the floor and pale foam at each crest |
-| 🟩 Code Rain | Green glyph streams fall down every week, each at its own pace |
+| 🌌 Aurora | Curtains of light drift and fold over the year, with rays shimmering through them |
 | 🧭 Pathfinder | A breadth-first search floods a maze from the first day to the latest, then traces the route |
 | 🦠 Life | Conway's Game of Life, seeded by the days you showed up |
 | 📊 Sort | Weeks ranked by activity become bars, sorted in parallel passes into a staircase |
 | 🏓 Pong | The year plays itself at Pong — spin off the paddles, a pixel scoreboard, the odd missed return |
-| 💓 Heartbeat | A steady pulse traced week by week, like a bedside monitor |
+| 🎆 Fireworks | Your biggest weeks are launched into the night — rockets climb, pixel sparks burst outward and fall, and a three-shell finale closes the show |
+| 💧 Ripples | Rain falls on the days you showed up, and every drop sends rings spreading across the year |
 
-Every scene draws from one spectrum — mint, sky, indigo, violet, pink and a single warm amber — tuned separately for light and dark cards, and a blurred copy of the scene layer gives every lit cell a soft bloom at no extra file size. The real graph always stays underneath: each scene dims it with its own veil rather than replacing it, so your year remains readable through every animation. The header shows the date range and your active days, the graph reveals itself column by column on load, scenes crossfade with eased envelopes, and a gallery placard plus a segmented progress bar name the scene that is playing.
+Every scene draws from one spectrum — mint, sky, indigo, violet, pink and a single warm amber — tuned separately for light and dark cards, and a blurred copy of the scene layer gives every lit cell a soft bloom at no extra file size. The real graph always stays underneath: each scene dims it with its own veil rather than replacing it, so your year remains readable through every animation. The header shows the date range and your active days, the graph reveals itself column by column on load, scenes crossfade with eased envelopes while a band of light in the incoming scene's hue sweeps across the year, and a gallery placard plus a segmented progress bar name the scene that is playing.
 
-Story scenes (Pathfinder, Sort, Pong, Constellation, Life) are scripted in SMIL on the shared cycle and rest at their first frame outside their window, so every crossfade starts cleanly. Continuous scenes are compact CSS keyframe loops where each cell only carries a phase offset. The scene order is shuffled on every render, and so are the details — the maze, the rally, the star picks, the plasma field — while the file stays around 260–290 KB.
+Story scenes (Pathfinder, Sort, Pong, Constellation, Life, Fireworks) are scripted in SMIL on the shared cycle and rest at their first frame outside their window, so every crossfade starts cleanly. Continuous scenes are compact CSS keyframe loops where each cell only carries a phase offset, or a few vector shapes (Aurora's curtains, Ripples' rings) seen through the cell lattice as a mask. Scenes off stage stop painting, so only the one or two on screen cost anything to draw. The scene order is shuffled on every render, and so are the details — the maze, the rally, the star picks, the shells, the plasma field — while the file stays around 350–400 KB.
 
 Enable it with `?mode=ambient` in the action outputs:
 
@@ -76,7 +77,7 @@ Four endpoints share a dark-first visual system: fine borders, consistent spacin
 | `/api/streak` | All-time contributions, current and longest streaks, and a glowing pixel flame |
 | `/api/trophy` | Seven ranked pixel trophies with glints and S-tier sparkles |
 
-Use `?theme=dark` for the dark palette; the default API palette remains light for existing embeds. The ambient, streak, and trophy cards are 753px wide. The stats and languages cards are 375 × 256px; embed each at `width="369"` to fit them side by side with a small gap, and let them wrap on narrow screens. All images have self-contained SVG/CSS animations, accessible descriptions, and reduced-motion fallbacks. The nine ambient scenes play in a freshly shuffled order on every render.
+Use `?theme=dark` for the dark palette; the default API palette remains light for existing embeds. The ambient, streak, and trophy cards are 753px wide. The stats and languages cards are 375 × 256px; embed each at `width="369"` to fit them side by side with a small gap, and let them wrap on narrow screens. All images have self-contained SVG/CSS animations, accessible descriptions, and reduced-motion fallbacks. The ten ambient scenes play in a freshly shuffled order on every render.
 
 Numbers come from [docs/stats.json](docs/stats.json), refreshed by CI every six hours. Language percentages describe the indexed language bytes in that snapshot; bars are linear relative to the largest language. No GitHub token is needed at request time.
 
@@ -184,7 +185,7 @@ src/
 ├── renderer/         # SVG animation generator
 │   ├── grid.ts       # Contribution grid rendering
 │   ├── animation.ts  # Keyframe animation engine (splatoon battle)
-│   ├── ambient.ts    # Ambient mode — assembles the nine scenes on one loop
+│   ├── ambient.ts    # Ambient mode — assembles the ten scenes on one loop
 │   ├── scenes/       # One file per scene, plus the shared timeline kit
 │   ├── theme.ts      # Shared surfaces, typography and accessible SVG framing
 │   ├── stats.ts      # Stats card — pixel icons + gradient numbers

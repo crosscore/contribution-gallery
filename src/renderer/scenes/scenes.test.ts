@@ -1,8 +1,9 @@
 import { CellOwner, Grid, DEFAULT_RENDER_CONFIG, DEFAULT_DARK_PALETTE, DEFAULT_LIGHT_PALETTE } from "../../types";
 import { renderAmbientSVG } from "../ambient";
 import { mulberry32, SCENE_SECONDS } from "./kit";
+import { SCENES } from "./index";
 
-const CYCLE = 9 * SCENE_SECONDS;
+const CYCLE = SCENES.length * SCENE_SECONDS;
 const SEEDS = [1, 2, 3, 5, 8, 13];
 
 /** A skewed random year: mostly quiet days with a few busy ones */
@@ -30,7 +31,7 @@ test.each(SEEDS)("every scene timeline is well formed and loops back to its rest
   for (const dark of [true, false]) {
     const svg = render(seed, dark);
     const all = scenes(svg);
-    expect(all).toHaveLength(9);
+    expect(all).toHaveLength(SCENES.length);
     for (const { markup, start } of all) {
       for (const { values, times, discrete } of timelines(markup)) {
         expect(values).toHaveLength(times.length);
@@ -75,4 +76,13 @@ test.each(SEEDS)("every pong window puts at least one point on the scoreboard (s
   const goals = timelines(markup).filter((t) => t.attribute === "opacity" && t.values.includes(".9"));
   expect(goals.length).toBeGreaterThanOrEqual(1);
   expect(markup).toMatch(/class="c pg-score"[^>]*><animate attributeName="fill-opacity"/);
+});
+
+test.each(SEEDS)("every firework shell bursts and burns out inside its window (seed %i)", (seed) => {
+  const { markup } = scene(render(seed), "fireworks");
+  expect((markup.match(/fill="url\(#fw-ring-\d+\)"/g) ?? []).length).toBeGreaterThanOrEqual(4);
+  // Sparks replay a shared flight plan from their burst; the longest plan lasts under 2.6 s
+  const delays = [...markup.matchAll(/class="c fw-spark[^"]*"[^>]*animation-delay:([\d.]+)s/g)].map((m) => Number(m[1]));
+  expect(delays.length).toBeGreaterThanOrEqual(4 * 24);
+  delays.forEach((d) => expect(d + 2.6).toBeLessThan(SCENE_SECONDS));
 });

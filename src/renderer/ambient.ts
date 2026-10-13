@@ -13,9 +13,10 @@ import {
 } from "./scenes";
 
 /**
- * Ambient renderer — a rotating gallery of nine cell-based scenes played
+ * Ambient renderer — a rotating gallery of ten cell-based scenes played
  * on top of the real contribution graph: Plasma, Constellation, Tide,
- * Code Rain, Pathfinder, Life, Sort, Pong and Heartbeat (src/renderer/scenes).
+ * Aurora, Pathfinder, Life, Sort, Pong, Fireworks and Ripples
+ * (src/renderer/scenes).
  *
  * Continuous scenes are CSS keyframe loops where each cell only carries a
  * phase offset; story scenes run a one-shot script inside their window
@@ -24,7 +25,8 @@ import {
  * no file-size cost.
  *
  * Timeline: SCENES.length × SCENE_SECONDS on one master cycle. Scene groups
- * crossfade with eased SMIL opacity envelopes, a placard names each piece,
+ * crossfade with eased SMIL opacity envelopes while a band of light in the
+ * incoming scene's hue sweeps across the year, a placard names each piece,
  * and a segmented progress bar fills in each scene's signature hue. The
  * scene order and every random detail are shuffled by `seed`.
  *
@@ -34,6 +36,7 @@ import {
  */
 
 const FADE_SECONDS = 2.2;
+const SWEEP_SECONDS = 1.8;
 const LABEL_FADE = 0.35;
 const MARGIN = 7;
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -55,6 +58,21 @@ function windowPoints(
     return [[0, 0], [fadeIn[0], 0], [fadeIn[1], 1], [Math.min(fadeOut[0], cycle), 1], [cycle, 0]];
   }
   return [[0, 0], [fadeIn[0], 0], [fadeIn[1], 1], [fadeOut[0], 1], [fadeOut[1], 0], [cycle, 0]];
+}
+
+/**
+ * Hide a scene outside its window, crossfades included. A fully transparent
+ * group still costs a repaint whenever its animations tick (masked SMIL
+ * scenes especially, and twice over through the bloom copy), so off-stage
+ * scenes keep their timelines running but skip painting entirely.
+ */
+function onStage(i: number, cycle: number): string {
+  const enter = i * SCENE_SECONDS - FADE_SECONDS - 0.05;
+  const exit = (i + 1) * SCENE_SECONDS;
+  const [values, times] = i === 0
+    ? [["visible", "hidden", "visible"], [0, exit, cycle + enter]]
+    : exit >= cycle ? [["hidden", "visible"], [0, enter]] : [["hidden", "visible", "hidden"], [0, enter, exit]];
+  return `<animate attributeName="visibility" values="${values.join(";")}" keyTimes="${times.map((t) => frac(t, cycle)).join(";")}" calcMode="discrete" dur="${cycle}s" repeatCount="indefinite"/>`;
 }
 
 /** One eased SMIL opacity animation from a piecewise-linear envelope */
@@ -115,6 +133,25 @@ function reveal(delay: number, rise: number): string {
   const keyTimes = delay > 0 ? `0;${(delay / dur).toFixed(4)};1` : "0;1";
   const splines = delay > 0 ? "0 0 1 1;.2 .6 .2 1" : ".2 .6 .2 1";
   return `<animate attributeName="opacity" values="${values}" keyTimes="${keyTimes}" keySplines="${splines}" calcMode="spline" dur="${num(dur)}s" fill="freeze"/>`;
+}
+
+/**
+ * A band of light crossing the graph during the crossfade into scene `i`,
+ * timed to finish as the new scene arrives. The sweep into the first scene
+ * runs at the very end of the cycle, so no sweep ever wraps around it.
+ */
+function sweepMotion(i: number, from: number, to: number, cycle: number): string {
+  const t0 = i === 0 ? cycle - SWEEP_SECONDS : i * SCENE_SECONDS - SWEEP_SECONDS;
+  const t1 = t0 + SWEEP_SECONDS;
+  const points: [number, number][] = [[0, from], [t0, from], [t1, to]];
+  if (t1 < cycle) points.push([t1 + 0.01, from], [cycle, from]);
+  const values = points.map((p) => num(p[1])).join(";");
+  const keyTimes = points.map((p) => frac(p[0], cycle)).join(";");
+  const splines = points.slice(1).map((p, k) => (k === 1 ? ".4 0 .3 1" : "0 0 1 1")).join(";");
+  // Like off-stage scenes, a resting band skips painting altogether
+  const shown = t1 < cycle ? ["hidden;visible;hidden", `0;${frac(t0, cycle)};${frac(t1, cycle)}`] : ["hidden;visible", `0;${frac(t0, cycle)}`];
+  return `<animate attributeName="x" values="${values}" keyTimes="${keyTimes}" calcMode="spline" keySplines="${splines}" dur="${cycle}s" repeatCount="indefinite"/>` +
+    `<animate attributeName="visibility" values="${shown[0]}" keyTimes="${shown[1]}" calcMode="discrete" dur="${cycle}s" repeatCount="indefinite"/>`;
 }
 
 /** Segment width tween: empty until its window, full after it, reset at the cycle start */
@@ -215,6 +252,7 @@ export function renderAmbientSVG(
       cycle,
       start: i * SCENE_SECONDS,
       cellMask: "cell-mask",
+      cellTile: "cell-tile",
     };
     const { css, body } = scene.build(ctx);
     if (css) cssBlocks.push(css);
@@ -224,8 +262,21 @@ export function renderAmbientSVG(
       );
     }
     // First scene stays visible if SMIL is unsupported (static fallback)
-    return `<g data-scene="${scene.id}" opacity="${i === 0 ? 1 : 0}">${windows[i].scene}${body}</g>`;
+    return `<g data-scene="${scene.id}" opacity="${i === 0 ? 1 : 0}"${i === 0 ? "" : ' visibility="hidden"'}>${windows[i].scene}${onStage(i, cycle)}${body}</g>`;
   });
+
+  // Scene changes: a soft band of light in the incoming hue, brightest at
+  // its leading edge, wipes across the lattice while the scenes crossfade
+  const sweepWidth = 6 * step;
+  const sweepDefs = ordered.map((scene, i) => {
+    const hue = colors[scene.hue];
+    const edge = config.darkMode ? colors.glint : hue;
+    return `<linearGradient id="sweep-${i}"><stop stop-color="${hue}" stop-opacity="0"/><stop offset=".7" stop-color="${hue}" stop-opacity="${config.darkMode ? ".3" : ".22"}"/>` +
+      `<stop offset=".94" stop-color="${edge}" stop-opacity="${config.darkMode ? ".8" : ".5"}"/><stop offset="1" stop-color="${edge}" stop-opacity="0"/></linearGradient>`;
+  }).join("");
+  const sweeps = ordered.map((_, i) =>
+    `<rect x="${-sweepWidth}" y="0" width="${sweepWidth}" height="${svgHeight}" fill="url(#sweep-${i})" visibility="hidden">${sweepMotion(i, -sweepWidth, svgWidth, cycle)}</rect>`
+  ).join("");
 
   // Footer: a gallery placard per scene, and a progress bar whose segments
   // fill in each scene's signature hue
@@ -250,14 +301,16 @@ export function renderAmbientSVG(
   const range = dateRange(grid);
   const heading = config.darkMode ? "#5865bc" : "#9db7ff";
 
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${svgWidth} ${cardHeight}" width="${svgWidth}" height="${cardHeight}" role="img" aria-labelledby="title description" data-design="gallery-v4">
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${svgWidth} ${cardHeight}" width="${svgWidth}" height="${cardHeight}" role="img" aria-labelledby="title description" data-design="gallery-v5">
   <title id="title">A year, in motion — contribution gallery</title>
   <desc id="description">Contribution graph ambient animation — ${ordered.map((s) => s.title).join(" → ")}, one scene every ${SCENE_SECONDS} seconds. ${activeDays} active days. Reduced motion shows the original contribution graph.</desc>
   <!-- generated by contribution-gallery ambient renderer (seed ${seed}) -->
   <style>${cssBlocks.join("\n")}</style>
   ${cardSurface(svgWidth, cardHeight, theme)}
   <defs>
-    <linearGradient id="spectrum"><stop stop-color="${spectrum[0]}"/><stop offset=".5" stop-color="${spectrum[1]}"/><stop offset="1" stop-color="${spectrum[2]}"/></linearGradient>
+    <linearGradient id="spectrum" spreadMethod="reflect"><stop stop-color="${spectrum[0]}"/><stop offset=".5" stop-color="${spectrum[1]}"/><stop offset="1" stop-color="${spectrum[2]}"/>
+      <animateTransform attributeName="gradientTransform" type="translate" values="0 0;-.7 0;0 0" keyTimes="0;.5;1" calcMode="spline" keySplines=".45 0 .55 1;.45 0 .55 1" dur="19s" repeatCount="indefinite"/></linearGradient>
+    ${sweepDefs}
     <radialGradient id="atmosphere" cx="80%" cy="0%" r="90%"><stop stop-color="${heading}" stop-opacity=".16"/><stop offset="1" stop-color="${theme.background}" stop-opacity="0"/>
       <animate attributeName="cx" values="80%;58%;80%" keyTimes="0;.5;1" keySplines=".45 0 .55 1;.45 0 .55 1" calcMode="spline" dur="46s" repeatCount="indefinite"/>
     </radialGradient>
@@ -279,7 +332,8 @@ export function renderAmbientSVG(
     <g class="ambient-scenes">${reveal(0.5, 1.8)}
     <g class="veils">${veils.join("\n    ")}</g>
     <use href="#scenes" filter="url(#bloom)" opacity="${num(bloom.opacity)}"/>
-    <g id="scenes">${groups.join("\n")}</g>
+    <g id="scenes">${groups.join("\n")}
+    <g mask="url(#cell-mask)">${sweeps}</g></g>
     </g>
   </g>
   <g class="scene-labels">${plates}${progress}</g>

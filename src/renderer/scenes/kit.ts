@@ -78,6 +78,8 @@ export interface SceneContext {
   start: number;
   /** Id of a mask that keeps only the cell squares of the lattice */
   cellMask: string;
+  /** Id of the white cell-square pattern behind that mask, for scenes that build their own masks */
+  cellTile: string;
 }
 
 export interface SceneOutput {
@@ -193,16 +195,18 @@ export function storyAnimation(name: string, ctx: Pick<SceneContext, "cycle">): 
 }
 
 /**
- * A linear SMIL tween for one attribute over the scene window: `stops` are
+ * A SMIL tween for one attribute over the scene window: `stops` are
  * [seconds after the window opens, value]. Before the window the attribute
  * rests at `rest`; it holds the last value to the end of the window and
- * snaps back to rest right after.
+ * snaps back to rest right after. Segments are linear unless `ease` gives
+ * a keySplines curve.
  */
 export function storyTween(
   attribute: string,
   rest: string,
   stops: [number, string][],
-  ctx: Pick<SceneContext, "start" | "cycle">
+  ctx: Pick<SceneContext, "start" | "cycle">,
+  ease?: string
 ): string {
   const points: [number, string][] = [[0, rest]];
   if (ctx.start > 0) points.push([ctx.start, rest]);
@@ -213,7 +217,11 @@ export function storyTween(
   else points.push([ctx.cycle, last]);
   const values = points.map((p) => p[1]).join(";");
   const keyTimes = points.map((p) => frac(p[0], ctx.cycle)).join(";");
-  return `<animate attributeName="${attribute}" values="${values}" keyTimes="${keyTimes}" dur="${ctx.cycle}s" repeatCount="indefinite"/>`;
+  // An optional cubic ease shapes every segment that changes value
+  const splines = ease
+    ? ` calcMode="spline" keySplines="${points.slice(1).map((p, i) => (p[1] === points[i][1] ? "0 0 1 1" : ease)).join(";")}"`
+    : "";
+  return `<animate attributeName="${attribute}" values="${values}" keyTimes="${keyTimes}"${splines} dur="${ctx.cycle}s" repeatCount="indefinite"/>`;
 }
 
 /**

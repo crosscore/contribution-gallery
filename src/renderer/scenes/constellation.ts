@@ -5,7 +5,8 @@ interface Star { x: number; y: number; }
 /**
  * Constellation — the busiest days become stars and a pen joins them into
  * a star chart: the minimum spanning tree over the stars, drawn edge by
- * edge in depth-first order. Faint dust twinkles across the rest of the sky.
+ * edge in depth-first order. Faint dust twinkles across the rest of the sky,
+ * and once the chart is drawn, a couple of meteors streak across it.
  */
 export const constellation: Scene = {
   id: "constellation",
@@ -98,15 +99,39 @@ export const constellation: Scene = {
       .slice(0, Math.round(W * 1.3))
       .map((c) => `<rect class="c cn-dust" x="${px(c.x)}" y="${py(c.y)}" style="animation-duration:${num(2.8 + rng() * 4)}s;animation-delay:-${num(rng() * 6)}s"/>`);
 
+    // Meteors: three nested dashes share one leading edge, so each streak
+    // tapers from a bright head into a long faint tail
+    const right = px(W - 1) + cell;
+    const bottom = py(H - 1) + cell;
+    const meteors = [0, 1].map((k) => {
+      const at = Math.min(t + 0.6 + k * 2.6 + rng() * 1.4, 13.2);
+      const x0 = right * (0.3 + rng() * 0.6);
+      const span = 150 + rng() * 90;
+      const [dx, dy] = [-Math.cos(0.42) * span, Math.sin(0.42) * span];
+      const d = `M${num(x0)} ${num(py(0) - 10)}l${num(dx)} ${num(dy)}`;
+      const fly = 0.75;
+      const tails = ([[46, 0.8, 0.28], [22, 1.3, 0.55], [7, 2, 1]] as const).map(([l, w, o]) => {
+        const slide = storyTween("stroke-dashoffset", num(l), [[at, num(l)], [at + fly, num(l - span - l)]], ctx);
+        return `<path d="${d}" stroke-width="${w}" stroke-opacity="${o}" stroke-dasharray="${l} ${num(span * 2)}" stroke-dashoffset="${l}">${slide}</path>`;
+      }).join("");
+      const glimmer = storyTween("opacity", "0", [[at, "0"], [at + 0.1, "1"], [at + fly * 0.7, "1"], [at + fly, "0"]], ctx);
+      return `<g class="cn-meteor" opacity="0">${glimmer}${tails}</g>`;
+    });
+
     const line = dark ? "#dbeafe" : colors.sky;
     const css =
       `.cn-line{fill:none;stroke:${line};stroke-width:1.3;stroke-linecap:round;stroke-opacity:${dark ? ".62" : ".7"}}` +
       `.cn-dim{fill:${colors.amber};fill-opacity:.28}` +
       `.cn-star{fill:${colors.amber};animation:cns 3s ease-in-out infinite}` +
       `@keyframes cns{0%,100%{fill-opacity:1}50%{fill-opacity:.62}}` +
+      `.cn-meteor{fill:none;stroke:${dark ? colors.glint : colors.indigo};stroke-linecap:round}` +
       `.cn-dust{fill:${colors.indigo};fill-opacity:0;animation:cnd 4s ease-in-out infinite}` +
       `@keyframes cnd{0%,100%{fill-opacity:0}50%{fill-opacity:${dark ? ".42" : ".5"}}}`;
 
-    return { css, body: dust.join("") + lines.join("") + starCells.join("") };
+    return {
+      css,
+      body: `<defs><clipPath id="cn-sky"><rect width="${right + 7}" height="${bottom + 7}"/></clipPath></defs>` +
+        dust.join("") + lines.join("") + starCells.join("") + `<g clip-path="url(#cn-sky)">${meteors.join("")}</g>`,
+    };
   },
 };

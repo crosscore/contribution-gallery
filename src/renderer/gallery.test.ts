@@ -4,6 +4,7 @@ import { renderStatsSVG } from "./stats";
 import { renderLangsSVG } from "./langs";
 import { renderStreakSVG } from "./streak";
 import { renderTrophySVG } from "./trophy";
+import { SCENES, SCENE_SECONDS } from "./scenes";
 
 const stats: UserStats = {
   login: "test", generatedAt: "2026-09-07T00:00:00Z", totalContributions: 12345,
@@ -60,14 +61,14 @@ test("milestones preserve rank boundaries and unranked values", () => {
   expect(renderTrophySVG({ ...stats, commits: 3999 }, true)).toContain("Commits: 3,999, rank SS");
 });
 
-test("ambient preserves all nine scenes and the original grid as its reduced-motion fallback", () => {
+test("ambient preserves every scene and the original grid as its reduced-motion fallback", () => {
   const grid: Grid = { width: 53, height: 7, cells: Array.from({ length: 53 }, (_, x) =>
     Array.from({ length: 7 }, (_, y) => ({ x, y, contributionLevel: 0, owner: CellOwner.None }))) };
   const config = { ...DEFAULT_RENDER_CONFIG, darkMode: true, palette: DEFAULT_DARK_PALETTE };
   const svg = renderAmbientSVG(grid, config, 42);
   expect(svg).toBe(renderAmbientSVG(grid, config, 42));
   expect(svg).not.toBe(renderAmbientSVG(grid, config, 43));
-  expect(new Set([...svg.matchAll(/data-scene="([^"]+)"/g)].map(m => m[1])).size).toBe(9);
+  expect(new Set([...svg.matchAll(/data-scene="([^"]+)"/g)].map(m => m[1])).size).toBe(SCENES.length);
   expect(svg).toContain('data-scene="tide"');
   // The real graph stays underneath every scene, and is all that remains without motion
   expect(svg.match(/class="c b" /g)).toHaveLength(371);
@@ -90,6 +91,6 @@ test("ambient labels the months when the grid carries week dates", () => {
   const months = [...svg.matchAll(/class="month" x="[\d.]+" y="\d+">(\w+)</g)].map(m => m[1]);
   expect(months).toEqual(["Sep", "Oct", "Nov", "Dec", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug"]);
   // Life cells ramp between states instead of flipping, with a linear key list ending at 1
-  expect(svg).toMatch(/values="0;0;1;[^"]*" keyTimes="0;0\.\d+;0\.\d+;[^"]*;1" dur="135s"/);
+  expect(svg).toMatch(new RegExp(`values="0;0;1;[^"]*" keyTimes="0;0\\.\\d+;0\\.\\d+;[^"]*;1" dur="${SCENES.length * SCENE_SECONDS}s"`));
   expect(svg).not.toMatch(/NaN|Infinity|undefined/);
 });
